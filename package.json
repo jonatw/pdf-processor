@@ -1,0 +1,19 @@
+{
+  "name": "pdf-processor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.1"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.3",
+    "pako": "^2.1.0",
+    "pdf-lib": "^1.17.1"
+  }
+}

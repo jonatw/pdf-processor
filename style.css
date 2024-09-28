@@ -1,0 +1,13 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+/* src/style.css */
+
+/* Custom styles can be added here */
+body {
+  background-color: #f8f9fa;
+}
+
+#app {
+  /* Ensures the app takes full viewport height */
+  min-height: 100vh;
+}
