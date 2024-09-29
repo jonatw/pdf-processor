@@ -7,61 +7,63 @@ import {
   PDFStream,
   PDFArray
 } from 'pdf-lib'
-import { inflate, deflate } from 'pako' // Import pako library
+import { inflate, deflate } from 'pako'
 
-// Initialize the app's HTML structure with Bootstrap classes
-const app = document.querySelector('#app')
-
-app.innerHTML = `
-  <div class="container mt-5">
-    <h1 class="mb-4">PDF Processor</h1>
-    <div class="mb-3">
-      <input type="file" id="pdf-upload" accept="application/pdf" class="form-control">
-    </div>
-    <button id="process-btn" class="btn btn-primary mb-4">Remove Most Common Substring</button>
-    
-    <!-- Progress Bar -->
-    <div class="progress mb-3" style="height: 25px; display: none;" id="progress-container">
-      <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progress-bar">
-        0%
+// 1. Render the page
+function renderPage() {
+  const app = document.querySelector('#app')
+  app.innerHTML = `
+    <div class="container mt-5">
+      <h1 class="mb-4">PDF Processor</h1>
+      <div class="mb-3">
+        <input type="file" id="pdf-upload" accept="application/pdf" class="form-control">
+      </div>
+      <button id="process-btn" class="btn btn-primary mb-4">Remove Most Common Substring</button>
+      
+      <!-- Progress Bar -->
+      <div class="progress mb-3" style="height: 25px; display: none;" id="progress-container">
+        <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progress-bar">
+          0%
+        </div>
+      </div>
+      
+      <!-- Status Block -->
+      <div class="alert alert-info align-items-center" role="alert" style="display: none;" id="status-block">
+        <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" id="spinner"></div>
+        <span id="status-message">Processing...</span>
       </div>
     </div>
-    
-    <!-- Status Block -->
-    <div class="alert alert-info align-items-center" role="alert" style="display: none;" id="status-block">
-      <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" id="spinner"></div>
-      <span id="status-message">Processing...</span>
-    </div>
-  </div>
-`
+  `
 
-// Select elements after setting innerHTML
-const progressContainer = document.getElementById('progress-container')
-const progressBar = document.getElementById('progress-bar')
-const statusBlock = document.getElementById('status-block')
-const statusMessage = document.getElementById('status-message')
-const processBtn = document.getElementById('process-btn')
-const spinner = document.getElementById('spinner')
+  // Select elements after setting innerHTML
+  const progressContainer = document.getElementById('progress-container')
+  const progressBar = document.getElementById('progress-bar')
+  const statusBlock = document.getElementById('status-block')
+  const statusMessage = document.getElementById('status-message')
+  const processBtn = document.getElementById('process-btn')
+  const spinner = document.getElementById('spinner')
 
-// Ensure both progress container and status block are hidden on page load
-window.onload = function () {
-  hideProgressIndicators();  // Hide any progress or status elements when the page is first loaded
-};
+  // Ensure both progress container and status block are hidden on page load
+  window.onload = function () {
+    hideProgressIndicators()
+  }
 
-// Add event listener to the process button
-processBtn.addEventListener('click', async function () {
+  // Add event listener to the process button
+  processBtn.addEventListener('click', handleProcessButtonClick)
+}
+
+// 2. Read the file from the file input after user clicked the button
+async function handleProcessButtonClick() {
   const pdfInput = document.getElementById('pdf-upload').files[0]
+  const processBtn = document.getElementById('process-btn')
 
   if (!pdfInput) {
     alert('Please upload a PDF file.')
-    hideProgressIndicators(); // Ensure nothing is displayed
+    hideProgressIndicators()
     return
   }
 
-  // Disable the process button to prevent multiple clicks
   processBtn.disabled = true
-
-  // Initialize progress bar and status
   showProgressIndicators()
   updateProgress(0, 'Starting the PDF processing...')
 
@@ -70,134 +72,122 @@ processBtn.addEventListener('click', async function () {
   reader.onload = async function (event) {
     try {
       updateProgress(10, 'Reading the PDF file...')
-
       let typedArray = new Uint8Array(event.target.result)
       
-      // Load PDF using pdf-lib
-      updateProgress(20, 'Loading the PDF document...')
-      let pdfDoc = await PDFDocument.load(typedArray)
-      let pages = pdfDoc.getPages()
+      // 3. Put the file into processPdf function and return the pdfDoc for download
+      const modifiedPdfBytes = await processPdf(typedArray)
 
-      // Store frequency statistics of substrings
-      let substringCounter = new Map()
+      // 4. Create download link and clean up all the resources
+      await createDownloadLink(modifiedPdfBytes)
 
-      // Define pattern and length
-      const patternString = ' Td <'
-      const desiredLength = 100 // Fixed length
-
-      // Convert pattern string to byte array
-      const patternBytes = new TextEncoder('latin1').encode(patternString)
-
-      // Extract and process the first page's content
-      updateProgress(30, 'Processing the first page...')
-      const firstPage = pages[0]
-
-      // Get content stream
-      const contentStreamRefs = firstPage.node.normalizedEntries().Contents
-
-      if (contentStreamRefs) {
-        // contentStreamRefs may be an array, single object, or reference; handle all cases
-        const contentStreamArray = Array.isArray(contentStreamRefs) ? contentStreamRefs : [contentStreamRefs]
-
-        for (const [index, streamRef] of contentStreamArray.entries()) {
-          updateProgress(30 + (index + 1) * 5, `Processing content stream ${index + 1}/${contentStreamArray.length}...`)
-          await processContentStream(streamRef, pdfDoc, substringCounter, patternBytes, desiredLength)
-        }
-      }
-
-      // Find the most common substring
-      updateProgress(50, 'Identifying the most common substring...')
-      let mostCommonSubstringHex = ''
-      let maxCount = 0
-
-      for (const [substringHex, count] of substringCounter.entries()) {
-        if (count > maxCount) {
-          maxCount = count
-          mostCommonSubstringHex = substringHex
-        }
-      }
-
-      console.log(`Most common substring: ${hexToAscii(mostCommonSubstringHex)} (Occurrences: ${maxCount})`)
-
-      updateProgress(60, 'Replacing the most common substring in all pages...')
-
-      // Convert the most common substring from hex back to byte array
-      let mostCommonSubstringBytes = hexStringToUint8Array(mostCommonSubstringHex)
-
-      // Replace the most common substring in the content streams
-      const totalPages = pages.length
-      for (const [pageIndex, page] of pages.entries()) {
-        updateProgress(60 + ((pageIndex + 1) / totalPages) * 20, `Modifying page ${pageIndex + 1}/${totalPages}...`)
-        const contentStreamRefs = page.node.normalizedEntries().Contents
-
-        if (contentStreamRefs) {
-          const contentStreamArray = Array.isArray(contentStreamRefs) ? contentStreamRefs : [contentStreamRefs]
-
-          for (const streamRef of contentStreamArray) {
-            await replaceInContentStream(streamRef, pdfDoc, mostCommonSubstringBytes)
-          }
-        }
-      }
-
-      // Save the modified PDF as a byte array
-      updateProgress(85, 'Saving the modified PDF...')
-      const modifiedPdfBytes = await pdfDoc.save()
-
-      // Download the modified PDF
-      updateProgress(90, 'Preparing download...')
-      const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = 'output_without_common_substring.pdf'
-      link.click()
-
-      // Release memory resources
-      URL.revokeObjectURL(link.href)
-      link.remove()
-
-      // Manually clean up references
+      // Clean up resources
       typedArray = null
-      pdfDoc = null
-      pages = null
-      substringCounter = null
-      mostCommonSubstringBytes = null
-      reader.abort() // Stop reading
+      reader.abort()
       reader = null
 
-      // Allow garbage collection to clean up resources
       if (window.gc) {
         window.gc()
       }
 
-      // Finalize progress and hide progress indicators immediately
       updateProgress(100, 'Processing complete!', 'bg-success')
-      hideProgressIndicators(); // Hide everything when complete
-
-      // Re-enable the process button
+      hideProgressIndicators()
       processBtn.disabled = false
 
     } catch (error) {
       console.error('An error occurred during processing:', error)
       updateProgress(0, 'An error occurred. Please try again.', 'bg-danger')
-      hideProgressIndicators(); // Ensure progress bar and status block are hidden in case of error
+      hideProgressIndicators()
       processBtn.disabled = false
     }
   }
 
   reader.readAsArrayBuffer(pdfInput)
-})
+}
 
-// Function to update the progress bar and status message
+// 3. Process the PDF file
+async function processPdf(typedArray) {
+  updateProgress(20, 'Loading the PDF document...')
+  let pdfDoc = await PDFDocument.load(typedArray)
+  let pages = pdfDoc.getPages()
+
+  let substringCounter = new Map()
+  const patternString = ' Td <'
+  const desiredLength = 100
+  const patternBytes = new TextEncoder('latin1').encode(patternString)
+
+  updateProgress(30, 'Processing the first page...')
+  const firstPage = pages[0]
+  const contentStreamRefs = firstPage.node.normalizedEntries().Contents
+
+  if (contentStreamRefs) {
+    const contentStreamArray = Array.isArray(contentStreamRefs) ? contentStreamRefs : [contentStreamRefs]
+    for (const [index, streamRef] of contentStreamArray.entries()) {
+      updateProgress(30 + (index + 1) * 5, `Processing content stream ${index + 1}/${contentStreamArray.length}...`)
+      await processContentStream(streamRef, pdfDoc, substringCounter, patternBytes, desiredLength)
+    }
+  }
+
+  updateProgress(50, 'Identifying the most common substring...')
+  let mostCommonSubstringHex = ''
+  let maxCount = 0
+
+  for (const [substringHex, count] of substringCounter.entries()) {
+    if (count > maxCount) {
+      maxCount = count
+      mostCommonSubstringHex = substringHex
+    }
+  }
+
+  console.log(`Most common substring: ${hexToAscii(mostCommonSubstringHex)} (Occurrences: ${maxCount})`)
+
+  updateProgress(60, 'Replacing the most common substring in all pages...')
+  let mostCommonSubstringBytes = hexStringToUint8Array(mostCommonSubstringHex)
+
+  const totalPages = pages.length
+  for (const [pageIndex, page] of pages.entries()) {
+    updateProgress(60 + ((pageIndex + 1) / totalPages) * 20, `Modifying page ${pageIndex + 1}/${totalPages}...`)
+    const contentStreamRefs = page.node.normalizedEntries().Contents
+
+    if (contentStreamRefs) {
+      const contentStreamArray = Array.isArray(contentStreamRefs) ? contentStreamRefs : [contentStreamRefs]
+      for (const streamRef of contentStreamArray) {
+        await replaceInContentStream(streamRef, pdfDoc, mostCommonSubstringBytes)
+      }
+    }
+  }
+
+  updateProgress(85, 'Saving the modified PDF...')
+  return await pdfDoc.save()
+}
+
+// 4. Create download link and clean up resources
+async function createDownloadLink(modifiedPdfBytes) {
+  updateProgress(90, 'Preparing download...')
+  const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'output_without_common_substring.pdf'
+  link.click()
+
+  // Release memory resources
+  URL.revokeObjectURL(link.href)
+  link.remove()
+}
+
+// Helper functions
 function updateProgress(percent, message, barClass = 'bg-info') {
+  const progressBar = document.getElementById('progress-bar')
+  const statusMessage = document.getElementById('status-message')
+  const statusBlock = document.getElementById('status-block')
+  const spinner = document.getElementById('spinner')
+
   progressBar.style.width = `${percent}%`
   progressBar.setAttribute('aria-valuenow', percent)
   progressBar.textContent = `${percent}%`
 
-  // Update status message
   statusMessage.textContent = message
   statusBlock.className = `alert ${barClass} align-items-center`
 
-  // Only show spinner if processing is ongoing (less than 100%)
   if (percent < 100) {
     spinner.style.display = 'inline-block'
   } else {
@@ -205,23 +195,31 @@ function updateProgress(percent, message, barClass = 'bg-info') {
   }
 }
 
-// Function to show progress bar and status block at the start of processing
 function showProgressIndicators() {
+  const progressContainer = document.getElementById('progress-container')
+  const statusBlock = document.getElementById('status-block')
+  const spinner = document.getElementById('spinner')
+
   progressContainer.style.display = 'block'
-  statusBlock.style.display = 'flex' // Use 'flex' when needed, not via class
+  statusBlock.style.display = 'flex'
   spinner.style.display = 'inline-block'
 }
 
-// Function to hide progress bar and status block immediately after completion or error
 function hideProgressIndicators() {
+  const progressContainer = document.getElementById('progress-container')
+  const statusBlock = document.getElementById('status-block')
+  const spinner = document.getElementById('spinner')
+
   progressContainer.style.display = 'none'
   statusBlock.style.display = 'none'
-  spinner.style.display = 'none' // Ensure the spinner is hidden
+  spinner.style.display = 'none'
   resetProgress()
 }
 
-// Function to reset the progress bar after completion
 function resetProgress() {
+  const progressBar = document.getElementById('progress-bar')
+  const statusMessage = document.getElementById('status-message')
+
   progressBar.style.width = '0%'
   progressBar.setAttribute('aria-valuenow', 0)
   progressBar.textContent = '0%'
@@ -230,8 +228,6 @@ function resetProgress() {
 
   statusMessage.textContent = ''
 }
-
-// ------------------- Remaining functions remain unchanged -------------------
 
 // Process content stream and count substrings
 async function processContentStream(streamRef, pdfDoc, substringCounter, patternBytes, desiredLength) {
@@ -445,3 +441,6 @@ async function replaceInContentStream(streamRef, pdfDoc, mostCommonSubstringByte
     console.error('contentStream is not an instance of PDFStream or PDFArray', contentStream)
   }
 }
+
+// Initialize the application
+renderPage()
