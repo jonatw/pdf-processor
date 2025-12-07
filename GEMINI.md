@@ -83,6 +83,7 @@ docker run -it --rm -v "$(pwd)/public/python_core:/src/PyMuPDF" -w /src/PyMuPDF 
 *   **Service Worker**: Ensures the app works offline.
 *   **HTTPS**: Required for PWA installation (except localhost).
 *   **Updates**: The `Network First` strategy for `python_core` ensures users get algorithmic updates when online.
+*   **Subdirectory Deployment**: `manifest.json` and asset links must use relative paths (e.g., `start_url: "."`) to support hosting in subfolders (like GitHub Pages).
 
 ## 📜 **License Compliance**
 *   **License**: **GNU AGPL v3.0**.
