@@ -1,14 +1,150 @@
-<!-- index.html -->
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" href="/favicon.ico" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PDF Processor</title>
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/main.js"></script>
-</body>
+<html lang="en" data-bs-theme="auto">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/javascript.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PDF Remover">
+    <link rel="apple-touch-icon" href="/javascript.svg">
+
+    <title>Secure PDF Watermark Remover</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.0/full/pyodide.js"></script>
+  </head>
+  <body>
+    <div id="app" class="d-flex flex-column min-vh-100">
+        <!-- Navbar / Header -->
+        <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+                    <img src="/javascript.svg" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                    <span class="fw-bold">PDF Remover</span>
+                </a>
+                <button class="btn btn-outline-secondary btn-sm" id="theme-toggle" aria-label="Toggle Dark Mode">
+                    <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div class="container main-container py-4 col-12 col-md-8 col-lg-6">
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold mb-3">Remove Watermarks</h1>
+                <p class="lead text-muted">
+                    Process your PDFs <span class="text-primary fw-semibold">100% locally</span> in your browser. 
+                    Your files never leave your device, ensuring maximum privacy and security.
+                </p>
+            </div>
+            
+            <div id="init-section" class="card border-info mb-4">
+                <div class="card-body d-flex align-items-center text-info-emphasis">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <div>
+                        <h5 class="card-title h6 mb-0">System Initializing</h5>
+                        <small>Loading secure Python environment...</small>
+                    </div>
+                </div>
+            </div>
+      
+            <div id="upload-section" class="card shadow-sm hidden">
+                <div class="card-body p-4">
+                    <label for="pdf-upload" class="form-label fw-medium mb-2">Select Document</label>
+                    <div class="input-group mb-3">
+                        <input type="file" id="pdf-upload" accept=".pdf" class="form-control form-control-lg">
+                    </div>
+                    <button id="process-btn" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-magic"></i>
+                        Remove Watermark
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress Bar Section -->
+            <div id="progress-section" class="card border-0 bg-transparent mt-4 hidden">
+                <div class="d-flex justify-content-between mb-1">
+                    <span id="progress-status" class="small fw-bold text-primary">Processing...</span>
+                    <span id="progress-percent" class="small text-muted">0%</span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <!-- Results Section -->
+            <div id="results-section" class="mt-5 hidden">
+                <h4 class="h5 mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-check-circle-fill text-success"></i> Processed Files
+                </h4>
+                <div id="results-list" class="list-group shadow-sm">
+                    <!-- Download links will be appended here -->
+                </div>
+            </div>
+
+            <!-- FAQ Section -->
+            <div class="mt-5 pt-4 border-top">
+                <h4 class="h5 mb-4 text-center">Frequently Asked Questions</h4>
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                <i class="bi bi-shield-lock me-2"></i> Is my data safe? Do you upload my files?
+                            </button>
+                        </h2>
+                        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body text-muted">
+                                <strong>Yes, your data is 100% safe.</strong> We do NOT upload your files to any server. 
+                                This application uses a technology called <strong>WebAssembly (WASM)</strong> to run the processing logic 
+                                directly inside your browser on your own device. Your files never leave your computer or phone.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                <i class="bi bi-wifi-off me-2"></i> Can I use this offline?
+                            </button>
+                        </h2>
+                        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body text-muted">
+                                <strong>Absolutely.</strong> Once you load this page for the first time, all necessary components (including the AI model) 
+                                are downloaded to your device. You can then turn off your Wi-Fi or go into Airplane Mode, and the tool will 
+                                continue to work perfectly. On iOS and Android, you can even "Add to Home Screen" to install it as an offline App.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                <i class="bi bi-phone me-2"></i> Does it work on iPhone/Android?
+                            </button>
+                        </h2>
+                        <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body text-muted">
+                                Yes! This tool is designed as a <strong>Progressive Web App (PWA)</strong>. 
+                                It works smoothly on mobile browsers. For the best experience, tap the "Share" button on Safari (iOS) 
+                                or the menu on Chrome (Android) and select <strong>"Add to Home Screen"</strong>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-auto py-3 text-center text-muted small">
+            <p class="mb-0">Powered by <a href="https://pyodide.org/" target="_blank" class="text-decoration-none">Pyodide</a> & WebAssembly</p>
+        </footer>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script type="module" src="/main.js"></script>
+  </body>
 </html>
