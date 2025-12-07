@@ -2,7 +2,7 @@
 <html lang="en" data-bs-theme="auto">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/javascript.svg" />
+    <link rel="icon" type="image/svg+xml" href="/pdf-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
     <!-- PWA Meta Tags -->
@@ -11,9 +11,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PDF Remover">
-    <link rel="apple-touch-icon" href="/javascript.svg">
+    <link rel="apple-touch-icon" href="/pdf-icon.svg">
 
-    <title>Secure PDF Watermark Remover</title>
+    <title>PDF Watermark Remover</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
@@ -28,8 +28,8 @@
         <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
             <div class="container">
                 <a class="navbar-brand d-flex align-items-center gap-2" href="#">
-                    <img src="/javascript.svg" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
-                    <span class="fw-bold">PDF Remover</span>
+                    <img src="/pdf-icon.svg" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
+                    <span class="fw-bold">Watermark Remover</span>
                 </a>
                 <button class="btn btn-outline-secondary btn-sm" id="theme-toggle" aria-label="Toggle Dark Mode">
                     <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
@@ -39,10 +39,8 @@
 
         <div class="container main-container py-4 col-12 col-md-8 col-lg-6">
             <div class="text-center mb-5">
-                <h1 class="display-5 fw-bold mb-3">Remove Watermarks</h1>
                 <p class="lead text-muted">
-                    Process your PDFs <span class="text-primary fw-semibold">100% locally</span> in your browser. 
-                    Your files never leave your device, ensuring maximum privacy and security.
+                    Process PDFs <strong>100% locally</strong> in your browser for maximum privacy.
                 </p>
             </div>
             
@@ -58,11 +56,20 @@
       
             <div id="upload-section" class="card shadow-sm hidden">
                 <div class="card-body p-4">
-                    <label for="pdf-upload" class="form-label fw-medium mb-2">Select Document</label>
-                    <div class="input-group mb-3">
-                        <input type="file" id="pdf-upload" accept=".pdf" class="form-control form-control-lg">
+                    <div id="drop-zone" class="upload-area mb-3">
+                        <i class="bi bi-cloud-arrow-up upload-icon"></i>
+                        <h5 class="mb-2">Drag & Drop PDF here</h5>
+                        <p class="text-muted mb-0">or click to browse</p>
+                        <input type="file" id="pdf-upload" accept=".pdf" class="d-none">
                     </div>
-                    <button id="process-btn" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2">
+                    <div id="file-info" class="d-flex align-items-center justify-content-between p-2 border rounded mb-3 hidden">
+                        <div class="d-flex align-items-center overflow-hidden">
+                            <i class="bi bi-file-earmark-pdf text-danger fs-4 me-2"></i>
+                            <span id="selected-filename" class="text-truncate fw-medium">filename.pdf</span>
+                        </div>
+                        <button id="remove-file-btn" class="btn btn-close" aria-label="Remove file"></button>
+                    </div>
+                    <button id="process-btn" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2" disabled>
                         <i class="bi bi-magic"></i>
                         Remove Watermark
                     </button>
@@ -97,42 +104,61 @@
                     <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                                <i class="bi bi-shield-lock me-2"></i> Is my data safe? Do you upload my files?
+                                <i class="bi bi-shield-check me-2"></i> Is my file safe? Do you see it?
                             </button>
                         </h2>
                         <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                             <div class="accordion-body text-muted">
-                                <strong>Yes, your data is 100% safe.</strong> We do NOT upload your files to any server. 
-                                This application uses a technology called <strong>WebAssembly (WASM)</strong> to run the processing logic 
-                                directly inside your browser on your own device. Your files never leave your computer or phone.
+                                <strong>100% Safe. We cannot see your files.</strong><br>
+                                Think of this website like a calculator on your phone. Even though you open it in a browser, everything happens right there on your device. 
+                                Your file <strong>never</strong> leaves your computer or phone. It is not uploaded to any "cloud" or server. 
+                                It stays with you the entire time.
                             </div>
                         </div>
                     </div>
                     <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                                <i class="bi bi-wifi-off me-2"></i> Can I use this offline?
+                                <i class="bi bi-wifi-off me-2"></i> How can I be sure you're not uploading it?
                             </button>
                         </h2>
                         <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                             <div class="accordion-body text-muted">
-                                <strong>Absolutely.</strong> Once you load this page for the first time, all necessary components (including the AI model) 
-                                are downloaded to your device. You can then turn off your Wi-Fi or go into Airplane Mode, and the tool will 
-                                continue to work perfectly. On iOS and Android, you can even "Add to Home Screen" to install it as an offline App.
+                                <strong>You can turn off your internet!</strong><br>
+                                Once this page is loaded, you can switch on "Airplane Mode" or disconnect your Wi-Fi. 
+                                The tool will still work perfectly. This proves that it doesn't need to send your file anywhere to process it.
                             </div>
                         </div>
                     </div>
                     <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-                                <i class="bi bi-phone me-2"></i> Does it work on iPhone/Android?
+                                <i class="bi bi-file-earmark-break me-2"></i> Is there a file size limit?
                             </button>
                         </h2>
                         <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                             <div class="accordion-body text-muted">
-                                Yes! This tool is designed as a <strong>Progressive Web App (PWA)</strong>. 
-                                It works smoothly on mobile browsers. For the best experience, tap the "Share" button on Safari (iOS) 
-                                or the menu on Chrome (Android) and select <strong>"Add to Home Screen"</strong>.
+                                <strong>No limit.</strong><br>
+                                You can try any file size. However, because your own device is doing the hard work (not a supercomputer), 
+                                very large files might make your browser run slow or your phone get a bit warm. This is normal!
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                                <i class="bi bi-phone me-2"></i> How do I install this on my phone?
+                            </button>
+                        </h2>
+                        <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body text-muted">
+                                This is a special kind of website called a <strong>"Web App"</strong> that can be installed like a regular app!
+                                <br><br>
+                                <ul>
+                                    <li><strong>On iPhone (using Safari):</strong> Tap the "Share" button (<i class="bi bi-share-fill"></i>), then find and tap "Add to Home Screen".</li>
+                                    <li><strong>On Android (using Chrome):</strong> Tap the three dots menu (<i class="bi bi-three-dots-vertical"></i>), then tap "Add to Home screen".</li>
+                                </ul>
+                                It will then show up as an icon on your phone's home screen, just like any other app.
                             </div>
                         </div>
                     </div>
@@ -141,7 +167,7 @@
         </div>
 
         <footer class="mt-auto py-3 text-center text-muted small">
-            <p class="mb-0">Powered by <a href="https://pyodide.org/" target="_blank" class="text-decoration-none">Pyodide</a> & WebAssembly</p>
+            <p class="mb-0">Powered by Pyodide & WASM</p>
         </footer>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
