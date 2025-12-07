@@ -1,24 +1,22 @@
-const CACHE_NAME = 'pdf-remover-v2'; // Incremented version to force update
+const CACHE_NAME = 'pdf-remover-v3'; // Incremented version to force update
 const CORE_ASSETS = [
-  '/',
-  '/index.html',
-  '/main.js',
-  '/style.css',
-  '/javascript.svg',
-  '/manifest.json'
+  './',
+  'index.html',
+  'main.js',
+  'style.css',
+  'manifest.json'
 ];
 
 const STATIC_ASSETS = [
-  '/wheels/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl'
+  'wheels/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl'
 ];
 
 // Files that should always try to fetch from network first (to get latest logic)
 const NETWORK_FIRST_PATHS = [
-    '/python_core/', 
-    '/main.js', 
-    '/index.html',
-    '/worker.js',
-    '/'
+    'python_core/', 
+    'main.js', 
+    'index.html',
+    'worker.js'
 ];
 
 // Install: Cache essential assets
@@ -57,7 +55,8 @@ self.addEventListener('fetch', (event) => {
   
   // Strategy 1: Network First (for logic files)
   // This ensures users get the latest python scripts and main.js if they are online.
-  const isNetworkFirst = NETWORK_FIRST_PATHS.some(path => url.pathname.startsWith(path));
+  // We use .includes() to be safe with subdirectory deployments (e.g. /pdf-processor/main.js)
+  const isNetworkFirst = NETWORK_FIRST_PATHS.some(path => url.pathname.includes(path)) || url.pathname.endsWith('/');
 
   if (isNetworkFirst) {
       event.respondWith(
