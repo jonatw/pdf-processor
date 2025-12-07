@@ -1,0 +1,3 @@
+[submodule "public/python_core"]
+	path = public/python_core
+	url = https://github.com/jonatw/pdf-watermark-remove.git
