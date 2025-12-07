@@ -1,4 +1,4 @@
-# Secure PDF Watermark Remover (WebAssembly & PWA)
+# PDF Watermark Remover (WebAssembly & PWA)
 
 This project provides a web-based, client-side application to remove watermarks from PDF documents. Leveraging Pyodide (WebAssembly) and PyMuPDF, all processing occurs directly in your browser, ensuring your files never leave your device. This is also a Progressive Web App (PWA), offering offline capabilities and installability on your mobile devices.
 

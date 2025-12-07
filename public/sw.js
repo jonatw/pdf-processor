@@ -17,6 +17,7 @@ const NETWORK_FIRST_PATHS = [
     '/python_core/', 
     '/main.js', 
     '/index.html',
+    '/worker.js',
     '/'
 ];
 

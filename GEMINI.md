@@ -5,7 +5,7 @@
 ## 📋 **Project Summary**
 
 ### Core Functionality
-**Secure PDF Watermark Remover (Client-Side)** - A progressive web application (PWA) that removes watermarks from PDF documents entirely within the browser using WebAssembly. It leverages the power of Python (PyMuPDF) through Pyodide, ensuring 100% data privacy as files never leave the user's device.
+**PDF Watermark Remover (Client-Side)** - A progressive web application (PWA) that removes watermarks from PDF documents entirely within the browser using WebAssembly. It leverages the power of Python (PyMuPDF) through Pyodide, ensuring 100% data privacy as files never leave the user's device.
 
 ### Key Objectives
 1.  **Zero-Upload Privacy**: Process files locally using WASM.

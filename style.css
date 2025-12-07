@@ -1,3 +1,4 @@
+/* src/style.css */
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
 :root {
@@ -33,7 +34,40 @@ body {
   transition: background-color var(--transition-speed), border-color var(--transition-speed), color var(--transition-speed);
 }
 
-/* Dark mode tweaks if needed beyond Bootstrap defaults */
+/* Dark mode tweaks */
 [data-bs-theme="dark"] .text-muted {
   color: #adb5bd !important;
+}
+
+/* --- Drag & Drop Styles --- */
+.upload-area {
+  border: 2px dashed var(--bs-border-color);
+  border-radius: 0.5rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--bs-body-bg);
+}
+
+.upload-area:hover, .upload-area.drag-over {
+  border-color: var(--bs-primary);
+  background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+[data-bs-theme="dark"] .upload-area:hover, 
+[data-bs-theme="dark"] .upload-area.drag-over {
+  background-color: rgba(var(--bs-primary-rgb), 0.15);
+}
+
+.upload-icon {
+  font-size: 3rem;
+  color: var(--bs-secondary);
+  margin-bottom: 1rem;
+  transition: color 0.2s;
+}
+
+.upload-area:hover .upload-icon,
+.upload-area.drag-over .upload-icon {
+  color: var(--bs-primary);
 }

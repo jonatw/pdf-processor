@@ -1,28 +1,28 @@
 // main.js
 import './style.css'
 
-// Configuration
-const PYTHON_CORE_PATH = './python_core'; 
-const PYMUPDF_WHEEL_PATH = './wheels/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl'; 
+// Web Worker Initialization
+// Use Vite's BASE_URL for correct path resolution in production
+const worker = new Worker(`${import.meta.env.BASE_URL}worker.js`);
 
-const PYTHON_FILES = [
-    'config.py',
-    'exceptions.py',
-    'logging_utils.py',
-    'strategies.py',
-    'remove_watermark.py'
-];
-
-let pyodide = null;
 const logElement = document.getElementById('status-log');
 const initSection = document.getElementById('init-section');
 const uploadSection = document.getElementById('upload-section');
 const processBtn = document.getElementById('process-btn');
 
+// Drag & Drop Elements
+const dropZone = document.getElementById('drop-zone');
+const pdfUploadInput = document.getElementById('pdf-upload');
+const fileInfoDiv = document.getElementById('file-info');
+const selectedFilenameSpan = document.getElementById('selected-filename');
+const removeFileBtn = document.getElementById('remove-file-btn');
+
+let selectedFile = null; 
+
 const progressSection = document.getElementById('progress-section');
 const progressBar = document.getElementById('progress-bar');
 const progressStatus = document.getElementById('progress-status');
-const progressPercent = document.getElementById('progress-percent'); // Added to capture the percent display span
+const progressPercent = document.getElementById('progress-percent');
 
 const resultsSection = document.getElementById('results-section');
 const resultsList = document.getElementById('results-list');
@@ -65,8 +65,7 @@ if (themeToggleBtn) {
 }
 // ----------------------------
 
-// Expose updateProgress to the global window object so Python can call it
-window.updateProgress = (status, percent) => {
+function updateProgress(status, percent) {
     if (progressSection && progressSection.classList.contains('hidden')) {
         progressSection.classList.remove('hidden');
     }
@@ -75,62 +74,20 @@ window.updateProgress = (status, percent) => {
         progressBar.style.width = `${pct}%`;
         progressBar.setAttribute('aria-valuenow', pct);
         
-        if (progressPercent) { // Update the separate percent span
+        if (progressPercent) { 
             progressPercent.textContent = `${pct}%`;
         }
     }
     if (progressStatus) {
         progressStatus.textContent = status || "Processing...";
     }
-};
+}
 
 function log(message) {
     if (logElement) {
         logElement.textContent = message;
     }
     console.log(message);
-}
-
-async function initialize() {
-    try {
-        log("Loading secure Python environment..."); // Fine-tuned text
-        pyodide = await loadPyodide();
-        
-        log("Installing Python dependencies...");
-        await pyodide.loadPackage("micropip");
-        const micropip = pyodide.pyimport("micropip");
-
-        log("Loading PyMuPDF core (this may take a moment)...");
-        try {
-            await micropip.install(PYMUPDF_WHEEL_PATH);
-        } catch (e) {
-            log(`ERROR: Failed to load PyMuPDF from ${PYMUPDF_WHEEL_PATH}. Ensure the wheel file is correctly placed.`);
-            console.error(e);
-            throw e;
-        }
-
-        log("Loading watermark removal logic...");
-        for (const file of PYTHON_FILES) {
-            await loadPythonFile(file);
-        }
-
-        log("Environment ready!");
-        if (initSection) initSection.classList.add('hidden');
-        if (uploadSection) uploadSection.classList.remove('hidden');
-
-    } catch (err) {
-        log(`CRITICAL ERROR: ${err.message}. Please check console.`);
-        console.error(err);
-        if (initSection) initSection.classList.add('alert-danger'); // Indicate error visually
-        if (initSection) initSection.classList.remove('alert-info');
-    }
-}
-
-async function loadPythonFile(filename) {
-    const response = await fetch(`${PYTHON_CORE_PATH}/${filename}`);
-    if (!response.ok) throw new Error(`Failed to fetch ${filename}. Check git submodule status.`); // More descriptive error
-    const content = await response.text();
-    pyodide.FS.writeFile(filename, content);
 }
 
 function addDownloadItem(blob, originalFileName) {
@@ -140,7 +97,7 @@ function addDownloadItem(blob, originalFileName) {
     const item = document.createElement('a');
     item.href = url;
     item.download = processedFileName;
-    item.className = "list-group-item list-group-item-action list-group-item-success d-flex justify-content-between align-items-center rounded-3 mb-2"; // Added rounded-3 and mb-2 for spacing
+    item.className = "list-group-item list-group-item-action list-group-item-success d-flex justify-content-between align-items-center rounded-3 mb-2";
     item.innerHTML = `
         <div>
             <span class="fw-bold">${processedFileName}</span>
@@ -155,101 +112,150 @@ function addDownloadItem(blob, originalFileName) {
     if (resultsSection) resultsSection.classList.remove('hidden');
 }
 
+// --- Worker Event Handling ---
+worker.onmessage = function(e) {
+    const { status, message, progressStatus, progressPercent, resultData, originalName } = e.data;
+
+    if (status === 'init') {
+        log(message);
+    } else if (status === 'ready') {
+        log(message);
+        if (initSection) initSection.classList.add('hidden');
+        if (uploadSection) uploadSection.classList.remove('hidden');
+    } else if (status === 'progress') {
+        updateProgress(progressStatus, progressPercent);
+    } else if (status === 'complete') {
+        const blob = new Blob([resultData], { type: 'application/pdf' });
+        addDownloadItem(blob, originalName);
+        
+        updateProgress("Processing completed!", 100);
+        processBtn.disabled = false;
+        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+    } else if (status === 'error') {
+        console.error("Worker Error:", message);
+        alert(`Processing Failed: ${message}`);
+        updateProgress("Failed!", 0);
+        if (progressBar) progressBar.classList.add('bg-danger');
+        
+        processBtn.disabled = false;
+        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+    }
+};
+
+// --- Drag & Drop Logic ---
+if (dropZone) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight(e) {
+        dropZone.classList.add('drag-over');
+    }
+
+    function unhighlight(e) {
+        dropZone.classList.remove('drag-over');
+    }
+
+    dropZone.addEventListener('drop', handleDrop, false);
+    dropZone.addEventListener('click', () => pdfUploadInput.click());
+}
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+if (pdfUploadInput) {
+    pdfUploadInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+}
+
+function handleFiles(files) {
+    if (files.length > 0) {
+        const file = files[0];
+        if (file.type === 'application/pdf') {
+            selectedFile = file;
+            updateFileInfo(file.name);
+        } else {
+            alert('Only PDF files are allowed.');
+        }
+    }
+}
+
+function updateFileInfo(filename) {
+    if (dropZone) dropZone.classList.add('hidden');
+    if (fileInfoDiv) fileInfoDiv.classList.remove('hidden');
+    if (selectedFilenameSpan) selectedFilenameSpan.textContent = filename;
+    if (processBtn) processBtn.disabled = false;
+}
+
+if (removeFileBtn) {
+    removeFileBtn.addEventListener('click', () => {
+        selectedFile = null;
+        if (pdfUploadInput) pdfUploadInput.value = ''; // Reset input
+        if (dropZone) dropZone.classList.remove('hidden');
+        if (fileInfoDiv) fileInfoDiv.classList.add('hidden');
+        if (processBtn) processBtn.disabled = true;
+    });
+}
+
+// --- Process Button Logic (Sends message to Worker) ---
 if (processBtn) {
     processBtn.addEventListener('click', async () => {
-        const fileInput = document.getElementById('pdf-upload');
-        if (fileInput.files.length === 0) {
+        if (!selectedFile) {
             alert("Please select a PDF file first.");
             return;
         }
 
-        const file = fileInput.files[0];
         processBtn.disabled = true;
-        processBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...'; // Processing state for button
+        processBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
         
-        // Show progress bar and reset status
         if (progressSection) progressSection.classList.remove('hidden');
-        if (progressBar) progressBar.classList.remove('bg-danger'); // Clear any previous error state
-        window.updateProgress("Starting PDF analysis...", 0); // Fine-tuned status
+        if (progressBar) progressBar.classList.remove('bg-danger');
+        updateProgress("Starting PDF analysis...", 0); 
 
         try {
-            const arrayBuffer = await file.arrayBuffer();
+            const arrayBuffer = await selectedFile.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
 
-            const timestamp = Date.now();
-            const inputFilename = `input_${timestamp}.pdf`;
-            const outputFilename = `output_${timestamp}.pdf`;
-            
-            pyodide.FS.writeFile(inputFilename, uint8Array);
-
-            const pythonScript = `
-import sys
-import asyncio
-import js
-from remove_watermark import remove_watermark
-import logging
-
-input_file = "${inputFilename}"
-output_file = "${outputFilename}"
-
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
-def js_progress_callback(status, progress):
-    js.window.updateProgress(status, progress * 100)
-
-print(f"Python: Starting watermark removal for {input_file}...")
-
-try:
-    await remove_watermark(
-        input_file, 
-        output_file,
-        progress_callback=js_progress_callback
-    )
-    print("Python: Processed successfully.")
-except Exception as e:
-    print(f"Python Error during processing: {e}")
-    raise e
-`;
-            console.log("Executing Python logic in Pyodide...");
-            await pyodide.runPythonAsync(pythonScript);
-
-            if (pyodide.FS.analyzePath(outputFilename).exists) {
-                const resultBytes = pyodide.FS.readFile(outputFilename);
-                const blob = new Blob([resultBytes], { type: 'application/pdf' });
-                
-                addDownloadItem(blob, file.name); // Pass original file name for processed output
-                
-                window.updateProgress("Processing completed!", 100);
-                
-                // Cleanup virtual filesystem
-                try {
-                    pyodide.FS.unlink(inputFilename);
-                    pyodide.FS.unlink(outputFilename);
-                } catch(e) { console.warn("Pyodide FS cleanup failed:", e); }
-
-            } else {
-                throw new Error("Python script did not create an output PDF.");
-            }
+            // Send to Worker
+            worker.postMessage({
+                type: 'process',
+                fileData: uint8Array,
+                fileName: selectedFile.name
+            }, [uint8Array.buffer]); // Transferable for performance
 
         } catch (e) {
             console.error(e);
-            alert(`Processing Failed: ${e.message}. See console for details.`);
-            window.updateProgress("Failed!", 0);
-            if (progressBar) progressBar.classList.add('bg-danger');
-        } finally {
+            alert(`Failed to read file: ${e.message}`);
             processBtn.disabled = false;
-            processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark'; // Reset button text
+            processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
         }
     });
 }
 
-// Start Pyodide initialization
-initialize();
-
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        // Use Vite's BASE_URL to ensure correct path in both dev (/) and prod (/repo-name/)
+        const swPath = `${import.meta.env.BASE_URL}sw.js`;
+        
+        navigator.serviceWorker.register(swPath)
             .then(registration => {
                 console.log('ServiceWorker registration successful with scope: ', registration.scope);
             })
