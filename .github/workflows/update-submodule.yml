@@ -1,0 +1,48 @@
+name: Update Python Core Submodule
+
+on:
+  # Triggered manually or by a webhook from the Python repo
+  repository_dispatch:
+    types: [update-python-core]
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-submodule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'actions@github.com'
+
+      - name: Update Submodule
+        run: |
+          git submodule update --remote --merge
+          
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if [[ -n $(git status -s) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git add public/python_core
+          git commit -m "chore(submodule): update python core logic"
+          git push origin main
