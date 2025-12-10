@@ -1,11 +1,11 @@
 {
-  "name": "PDF Watermark Remover",
-  "short_name": "Watermark Remover",
+  "name": "PDF Processor",
+  "short_name": "PDF Processor",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0d6efd",
-  "description": "Remove watermarks from PDF files locally and securely using WebAssembly.",
+  "description": "Process PDF files locally and securely using WebAssembly.",
   "icons": [
     {
       "src": "pdf-icon.svg",
