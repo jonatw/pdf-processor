@@ -1,8 +1,8 @@
-# PDF Watermark Remover (WebAssembly & PWA)
+# PDF Processor (WebAssembly & PWA)
 
 **Live Demo**: [https://jonatw.github.io/pdf-processor/](https://jonatw.github.io/pdf-processor/)
 
-This project provides a web-based, client-side application to remove watermarks from PDF documents. Leveraging Pyodide (WebAssembly) and PyMuPDF, all processing occurs directly in your browser, ensuring your files never leave your device. This is also a Progressive Web App (PWA), offering offline capabilities and installability on your mobile devices.
+This project provides a web-based, client-side application to process PDF documents. Leveraging Pyodide (WebAssembly) and PyMuPDF, all processing occurs directly in your browser, ensuring your files never leave your device. This is also a Progressive Web App (PWA), offering offline capabilities and installability on your mobile devices.
 
 ## ✨ Features
 
@@ -28,7 +28,7 @@ Clone this repository and initialize the Python submodule:
 
 ```bash
 # Clone this web project
-git clone https://github.com/your-username/pdf-watermark-remove-js.git # Replace with your repo URL
+git clone https://github.com/jonatw/pdf-processor.git
 cd pdf-watermark-remove-js
 
 # Initialize the Python core as a submodule
@@ -81,7 +81,7 @@ The application will be accessible at `http://localhost:5173` (or another port s
 1.  Open the web application in your browser.
 2.  If you want to use it offline, "Add to Home Screen" on your mobile device (iOS/Android).
 3.  Select a PDF file using the "Select Document" input.
-4.  Click "Remove Watermark".
+4.  Click "Process PDF".
 5.  Observe the progress bar.
 6.  Once completed, a download link for the processed PDF will appear in the "Processed Files" list.
 
@@ -137,7 +137,7 @@ The application will be accessible at `http://localhost:5173` (or another port s
     <div class="accordion-item">
         <h2 class="accordion-header">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
-                <i class="bi bi-arrow-clockwise me-2"></i> How do I update the watermark removal logic?
+*   How do I update the PDF processing logic?
             </button>
         </h2>
         <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
