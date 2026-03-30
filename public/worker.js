@@ -15,7 +15,7 @@ const PYTHON_FILES = [
 let pyodide = null;
 let initPromise = null; // Tracks ongoing initialization to avoid duplicate inits
 
-// Lazy initialization — only loads Pyodide when first needed
+// Returns a promise that resolves when Pyodide is ready
 function ensureInitialized() {
     if (pyodide) return Promise.resolve();
     if (initPromise) return initPromise;
@@ -57,12 +57,6 @@ async function loadPythonFile(filename) {
 
 self.onmessage = async (event) => {
     const { type, fileData, fileName } = event.data;
-
-    if (type === 'init') {
-        // Explicit init request (e.g. when user selects a file)
-        await ensureInitialized();
-        return;
-    }
 
     if (type === 'process') {
         // Ensure Pyodide is ready before processing
@@ -139,3 +133,8 @@ except Exception as e:
         }
     }
 };
+
+// Start initialization immediately — required for PWA offline support.
+// Service Worker caches all assets on first visit, so subsequent offline
+// loads will succeed. UI is shown in parallel (not blocked).
+ensureInitialized();
