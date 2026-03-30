@@ -1,9 +1,9 @@
 // main.js
 import './style.css'
 
-// Web Worker Initialization
-// Use Vite's BASE_URL for correct path resolution in production
+// Web Worker — created immediately but Pyodide loads lazily
 const worker = new Worker(`${import.meta.env.BASE_URL}worker.js`);
+let pyodideReady = false;
 
 const logElement = document.getElementById('status-log');
 const initSection = document.getElementById('init-section');
@@ -112,16 +112,22 @@ function addDownloadItem(blob, originalFileName) {
     if (resultsSection) resultsSection.classList.remove('hidden');
 }
 
+// --- Show upload UI immediately (lazy init — Pyodide loads when user selects a file) ---
+if (initSection) initSection.classList.add('hidden');
+if (uploadSection) uploadSection.classList.remove('hidden');
+
 // --- Worker Event Handling ---
 worker.onmessage = function(e) {
     const { status, message, progressStatus, progressPercent, resultData, originalName } = e.data;
 
     if (status === 'init') {
+        // Show init status in the progress area during lazy loading
+        if (initSection) initSection.classList.remove('hidden');
         log(message);
     } else if (status === 'ready') {
-        log(message);
+        pyodideReady = true;
         if (initSection) initSection.classList.add('hidden');
-        if (uploadSection) uploadSection.classList.remove('hidden');
+        log(message);
     } else if (status === 'progress') {
         updateProgress(progressStatus, progressPercent);
     } else if (status === 'complete') {
@@ -191,6 +197,10 @@ function handleFiles(files) {
         if (file.type === 'application/pdf') {
             selectedFile = file;
             updateFileInfo(file.name);
+            // Trigger lazy Pyodide init as soon as user selects a file
+            if (!pyodideReady) {
+                worker.postMessage({ type: 'init' });
+            }
         } else {
             alert('Only PDF files are allowed.');
         }
