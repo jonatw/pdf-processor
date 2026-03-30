@@ -11,9 +11,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **License:** GNU AGPL v3.0 (due to PyMuPDF dependency)
 
 **Tech Stack:**
-- **Frontend:** HTML5, CSS3, JavaScript Modules
-- **Build:** [Vite 5](https://vitejs.dev)
-- **UI:** [Bootstrap 5.3](https://getbootstrap.com) (native Dark Mode)
+- **Frontend:** HTML5, SCSS, JavaScript Modules
+- **Build:** [Vite 5](https://vitejs.dev) + [Sass](https://sass-lang.com)
+- **UI:** [Bootstrap 5.3](https://getbootstrap.com) (tree-shaken via SCSS, native Dark Mode)
+- **Icons:** Bootstrap Icons (14 icons, self-hosted via CSS masks — no icon font)
 - **WASM Runtime:** [Pyodide v0.26](https://pyodide.org) (Python 3.12 in WASM)
 - **PDF Library:** [PyMuPDF](https://pymupdf.readthedocs.io) (Emscripten/WASM wheel)
 
@@ -41,11 +42,21 @@ public/
 ├── sw.js          # Service Worker (offline caching strategy)
 ├── worker.js      # Web Worker (Pyodide bridge)
 └── manifest.json  # PWA manifest
+scss/
+├── custom-bootstrap.scss  # Tree-shaken Bootstrap (only used components)
+└── _icons.scss            # 14 Bootstrap Icons as CSS masks (no font)
 main.js            # UI logic, file handling, Pyodide bridge
-style.css          # Custom styles, dark mode transitions
-index.html         # Entry point (Bootstrap UI)
+style.scss         # App styles (imports SCSS modules above)
+index.html         # Entry point (no CDN CSS/JS — all bundled by Vite)
 vite.config.js     # Vite build configuration
 ```
+
+### Frontend Build
+- **Bootstrap CSS** is imported via SCSS (`scss/custom-bootstrap.scss`), only including used components
+- **Bootstrap Icons** — 14 icons self-hosted as CSS mask-image in `scss/_icons.scss` (no icon font CDN)
+- **Bootstrap JS** — only `collapse` component imported (for FAQ accordion)
+- Adding a new Bootstrap component: add its `@import` to `custom-bootstrap.scss`
+- Adding a new icon: add its SVG data to `_icons.scss` and regenerate from `node_modules/bootstrap-icons/icons/`
 
 ### Key Components
 

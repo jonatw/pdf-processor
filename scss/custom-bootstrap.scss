@@ -1,0 +1,100 @@
+// Only import the Bootstrap modules we actually use (tree-shaken)
+
+// Required core
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+
+// Layout
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+
+// Components we use
+@import "bootstrap/scss/buttons";
+@import "bootstrap/scss/transitions";
+@import "bootstrap/scss/navbar";
+@import "bootstrap/scss/nav";
+@import "bootstrap/scss/card";
+@import "bootstrap/scss/badge";
+@import "bootstrap/scss/alert";
+@import "bootstrap/scss/close";
+@import "bootstrap/scss/spinners";
+@import "bootstrap/scss/progress";
+@import "bootstrap/scss/list-group";
+@import "bootstrap/scss/accordion";
+
+// Helpers
+@import "bootstrap/scss/helpers/visually-hidden";
+@import "bootstrap/scss/helpers/color-bg";
+
+// Utilities — only generate the ones we use
+@import "bootstrap/scss/utilities";
+
+// Trim unused utilities before generating
+$utilities: map-merge(
+  $utilities,
+  (
+    // Remove utilities we don't use
+    "opacity": null,
+    "overflow": null,
+    "position": null,
+    "top": null,
+    "bottom": null,
+    "start": null,
+    "end": null,
+    "translate-middle": null,
+    "border-color": null,
+    "border-width": null,
+    "border-opacity": null,
+    "border-radius-top": null,
+    "border-radius-end": null,
+    "border-radius-bottom": null,
+    "border-radius-start": null,
+    "max-width": null,
+    "viewport-width": null,
+    "min-viewport-width": null,
+    "max-height": null,
+    "viewport-height": null,
+    "min-viewport-height": null,
+    "height": null,
+    "float": null,
+    "object-fit": null,
+    "object-position": null,
+    "shadow": null,
+    "focus-ring": null,
+    "link-opacity": null,
+    "link-offset": null,
+    "link-underline": null,
+    "link-underline-opacity": null,
+    "text-opacity": null,
+    "text-transform": null,
+    "white-space": null,
+    "word-wrap": null,
+    "letter-spacing": null,
+    "line-height": null,
+    "bg-opacity": null,
+    "gradient": null,
+    "user-select": null,
+    "pointer-events": null,
+    "visibility": null,
+    "z-index": null,
+    "flex-wrap": null,
+    "flex-fill": null,
+    "flex-grow": null,
+    "flex-shrink": null,
+    "order": null,
+    "align-content": null,
+    "align-self": null,
+    "font-style": null,
+    "min-width": null,
+    "min-height": null,
+    "interaction": null,
+    "text-decoration": null,
+  )
+);
+
+@import "bootstrap/scss/utilities/api";

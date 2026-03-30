@@ -16,11 +16,7 @@
 
     <title>PDF Processor</title>
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    
+    <!-- Bootstrap CSS is tree-shaken via SCSS and bundled by Vite -->
     <!-- Preload heavy Pyodide WASM assets — browser starts downloading before Worker needs them -->
     <link rel="preload" href="https://cdn.jsdelivr.net/pyodide/v0.26.0/full/pyodide.asm.wasm" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="https://cdn.jsdelivr.net/pyodide/v0.26.0/full/pyodide-lock.json" as="fetch" crossorigin="anonymous">
@@ -181,7 +177,7 @@
             <p class="mb-0">Powered by Pyodide & WASM</p>
         </footer>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- Bootstrap JS (Collapse only) is imported via Vite in main.js -->
     <script type="module" src="/main.js"></script>
   </body>
 </html>
