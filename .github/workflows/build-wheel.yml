@@ -93,7 +93,7 @@ jobs:
       - name: Setup Node.js for smoke test
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Smoke test — verify wheel loads in Pyodide
         working-directory: ${{ github.workspace }}
