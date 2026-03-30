@@ -49,13 +49,19 @@
                 </p>
             </div>
             
-            <div id="init-section" class="card border-info mb-4">
-                <div class="card-body d-flex align-items-center text-info-emphasis">
-                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
-                    <div>
-                        <h5 class="card-title h6 mb-0">System Initializing</h5>
-                        <small>Loading secure Python environment...</small>
+            <div id="init-section" class="card border-info mb-4 init-fade">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+                            <span id="status-log" class="fw-medium">Preparing...</span>
+                        </div>
+                        <span id="network-badge" class="badge"></span>
                     </div>
+                    <div class="progress" style="height: 6px;">
+                        <div id="init-progress-bar" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="init-error" class="mt-2 hidden"></div>
                 </div>
             </div>
       

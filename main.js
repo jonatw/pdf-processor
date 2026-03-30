@@ -7,6 +7,9 @@ let pyodideReady = false;
 
 const logElement = document.getElementById('status-log');
 const initSection = document.getElementById('init-section');
+const initProgressBar = document.getElementById('init-progress-bar');
+const initError = document.getElementById('init-error');
+const networkBadge = document.getElementById('network-badge');
 const uploadSection = document.getElementById('upload-section');
 const processBtn = document.getElementById('process-btn');
 
@@ -17,7 +20,22 @@ const fileInfoDiv = document.getElementById('file-info');
 const selectedFilenameSpan = document.getElementById('selected-filename');
 const removeFileBtn = document.getElementById('remove-file-btn');
 
-let selectedFile = null; 
+let selectedFile = null;
+
+// --- Network Status Detection ---
+function updateNetworkBadge() {
+    if (!networkBadge) return;
+    if (navigator.onLine) {
+        networkBadge.textContent = 'Online';
+        networkBadge.className = 'badge bg-success';
+    } else {
+        networkBadge.textContent = 'Offline (cached)';
+        networkBadge.className = 'badge bg-secondary';
+    }
+}
+updateNetworkBadge();
+window.addEventListener('online', updateNetworkBadge);
+window.addEventListener('offline', updateNetworkBadge); 
 
 const progressSection = document.getElementById('progress-section');
 const progressBar = document.getElementById('progress-bar');
@@ -117,14 +135,26 @@ if (uploadSection) uploadSection.classList.remove('hidden');
 
 // --- Worker Event Handling ---
 worker.onmessage = function(e) {
-    const { status, message, progressStatus, progressPercent, resultData, originalName } = e.data;
+    const { status, message, step, totalSteps, progressStatus, progressPercent, resultData, originalName } = e.data;
 
     if (status === 'init') {
         log(message);
+        // Update init progress bar
+        if (initProgressBar && step && totalSteps) {
+            const pct = Math.round((step / totalSteps) * 100);
+            initProgressBar.style.width = `${pct}%`;
+        }
     } else if (status === 'ready') {
         pyodideReady = true;
-        if (initSection) initSection.classList.add('hidden');
         log(message);
+        // Fill progress bar to 100% then fade out
+        if (initProgressBar) initProgressBar.style.width = '100%';
+        if (initSection) {
+            initSection.classList.add('init-fade-out');
+            initSection.addEventListener('animationend', () => {
+                initSection.classList.add('hidden');
+            }, { once: true });
+        }
     } else if (status === 'progress') {
         updateProgress(progressStatus, progressPercent);
     } else if (status === 'complete') {
@@ -136,12 +166,38 @@ worker.onmessage = function(e) {
         processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
     } else if (status === 'error') {
         console.error("Worker Error:", message);
-        alert(`Processing Failed: ${message}`);
-        updateProgress("Failed!", 0);
-        if (progressBar) progressBar.classList.add('bg-danger');
-        
-        processBtn.disabled = false;
-        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+
+        // Init error (Pyodide not ready yet) — show in init-section
+        if (!pyodideReady && initSection) {
+            if (initProgressBar) initProgressBar.style.width = '0%';
+            initSection.classList.remove('init-fade-out');
+            const spinner = initSection.querySelector('.spinner-border');
+            if (spinner) spinner.classList.add('hidden');
+
+            if (initError) {
+                initError.classList.remove('hidden');
+                if (navigator.onLine) {
+                    initError.innerHTML = `
+                        <div class="alert alert-danger mb-0 py-2 small">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Setup failed: ${message}
+                            <button class="btn btn-sm btn-outline-danger ms-2" onclick="location.reload()">Retry</button>
+                        </div>`;
+                } else {
+                    initError.innerHTML = `
+                        <div class="alert alert-warning mb-0 py-2 small">
+                            <i class="bi bi-wifi-off me-1"></i> First-time setup requires internet. Please connect and reload.
+                        </div>`;
+                }
+            }
+        } else {
+            // Processing error
+            alert(`Processing Failed: ${message}`);
+            updateProgress("Failed!", 0);
+            if (progressBar) progressBar.classList.add('bg-danger');
+
+            processBtn.disabled = false;
+            processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+        }
     }
 };
 

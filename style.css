@@ -29,6 +29,16 @@ body {
   display: none !important;
 }
 
+/* Init section fade-out animation */
+.init-fade-out {
+  animation: fadeOut 0.4s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+
 /* Smooth transition for cards and alerts */
 .card, .alert, .list-group-item {
   transition: background-color var(--transition-speed), border-color var(--transition-speed), color var(--transition-speed);

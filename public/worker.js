@@ -23,24 +23,26 @@ function ensureInitialized() {
     return initPromise;
 }
 
+const INIT_TOTAL_STEPS = 3;
+
 async function initializePyodideAndPackages() {
     try {
-        // Step 1: Load Pyodide core
-        self.postMessage({ status: 'init', message: 'Loading Python environment...' });
+        // Step 1/3: Load Pyodide core runtime
+        self.postMessage({ status: 'init', step: 1, totalSteps: INIT_TOTAL_STEPS, message: 'Loading Python runtime...' });
         importScripts(`${PYODIDE_CDN}pyodide.js`);
         pyodide = await loadPyodide({ indexURL: PYODIDE_CDN });
 
-        // Step 2: Install PyMuPDF wheel directly via loadPackage — skips micropip overhead
-        self.postMessage({ status: 'init', message: 'Loading PyMuPDF...' });
+        // Step 2/3: Install PyMuPDF wheel via micropip
+        self.postMessage({ status: 'init', step: 2, totalSteps: INIT_TOTAL_STEPS, message: 'Loading PDF library...' });
         await pyodide.loadPackage('micropip');
         const micropip = pyodide.pyimport('micropip');
         await micropip.install(PYMUPDF_WHEEL_PATH);
 
-        // Step 3: Load all Python core files in parallel
-        self.postMessage({ status: 'init', message: 'Loading watermark removal tools...' });
+        // Step 3/3: Load all Python core files in parallel
+        self.postMessage({ status: 'init', step: 3, totalSteps: INIT_TOTAL_STEPS, message: 'Loading processing tools...' });
         await Promise.all(PYTHON_FILES.map(f => loadPythonFile(f)));
 
-        self.postMessage({ status: 'ready', message: 'Environment ready!' });
+        self.postMessage({ status: 'ready', message: 'Ready!' });
 
     } catch (e) {
         initPromise = null; // Allow retry on failure
