@@ -1,0 +1,122 @@
+name: Build PyMuPDF WASM Wheel
+
+on:
+  workflow_dispatch:
+    inputs:
+      pyodide_docker_tag:
+        description: 'Pyodide Docker image tag (e.g. 20240928-chrome127-firefox128)'
+        required: false
+        default: '20240928-chrome127-firefox128'
+      pyodide_version:
+        description: 'Pyodide CDN version for smoke test (e.g. 0.26.0)'
+        required: false
+        default: '0.26.0'
+
+jobs:
+  build-wheel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build PyMuPDF WASM wheel
+        run: |
+          echo "=== Building PyMuPDF WASM wheel ==="
+          echo "Docker image: ghcr.io/pyodide/pyodide-env:${{ inputs.pyodide_docker_tag }}"
+          docker run --rm \
+            -v "${{ github.workspace }}/public/python_core/src/PyMuPDF":/src/PyMuPDF \
+            -w /src/PyMuPDF \
+            ghcr.io/pyodide/pyodide-env:${{ inputs.pyodide_docker_tag }} \
+            /bin/bash -c "pip install pyodide-build && python3 scripts/test.sh pyodide"
+
+      - name: Find and verify wheel
+        id: wheel
+        run: |
+          echo "=== Searching for built wheel ==="
+          WHEEL=$(find public/python_core -name "*.whl" -path "*/wheelhouse/*" | head -1)
+          if [ -z "$WHEEL" ]; then
+            # Also check dist/ directory
+            WHEEL=$(find public/python_core -name "*.whl" -path "*/dist/*" | head -1)
+          fi
+          if [ -z "$WHEEL" ]; then
+            echo "ERROR: No wheel file found!"
+            find public/python_core -name "*.whl" 2>/dev/null
+            exit 1
+          fi
+          echo "Found wheel: $WHEEL"
+          ls -lh "$WHEEL"
+          WHEEL_NAME=$(basename "$WHEEL")
+          echo "wheel_path=$WHEEL" >> "$GITHUB_OUTPUT"
+          echo "wheel_name=$WHEEL_NAME" >> "$GITHUB_OUTPUT"
+
+          # Copy to public/wheels for smoke test
+          cp "$WHEEL" public/wheels/
+          echo "Copied to public/wheels/$WHEEL_NAME"
+
+      - name: Setup Node.js for smoke test
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Smoke test — verify wheel loads in Pyodide
+        run: |
+          echo "=== Smoke test: loading wheel in Pyodide (Node.js) ==="
+          npm install pyodide@${{ inputs.pyodide_version }}
+
+          node --experimental-vm-modules << 'NODEEOF'
+          const { loadPyodide } = require("pyodide");
+
+          async function main() {
+            console.log("Loading Pyodide...");
+            const pyodide = await loadPyodide();
+
+            console.log("Installing micropip...");
+            await pyodide.loadPackage("micropip");
+            const micropip = pyodide.pyimport("micropip");
+
+            const wheelName = "${{ steps.wheel.outputs.wheel_name }}";
+            console.log(`Installing wheel: ${wheelName}`);
+            await micropip.install(`file:public/wheels/${wheelName}`);
+
+            console.log("Testing import fitz...");
+            const result = await pyodide.runPythonAsync(`
+          import fitz
+          version = fitz.version
+          print(f"PyMuPDF version: {version}")
+          f"PyMuPDF {version[0]} loaded successfully"
+            `);
+            console.log(`Result: ${result}`);
+            console.log("Smoke test PASSED!");
+          }
+
+          main().catch(e => {
+            console.error("Smoke test FAILED:", e.message);
+            process.exit(1);
+          });
+          NODEEOF
+
+      - name: Upload wheel as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pymupdf-wasm-wheel
+          path: public/wheels/${{ steps.wheel.outputs.wheel_name }}
+          retention-days: 90
+
+      - name: Summary
+        run: |
+          echo "## PyMuPDF WASM Wheel Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Wheel | \`${{ steps.wheel.outputs.wheel_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker image | \`ghcr.io/pyodide/pyodide-env:${{ inputs.pyodide_docker_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pyodide version | \`${{ inputs.pyodide_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke test | Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the wheel from the **Artifacts** section above." >> $GITHUB_STEP_SUMMARY
+          echo "Place it in \`public/wheels/\` and update \`PYMUPDF_WHEEL_PATH\` in \`public/worker.js\`." >> $GITHUB_STEP_SUMMARY
