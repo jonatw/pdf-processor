@@ -1,6 +1,11 @@
 name: Build PyMuPDF WASM Wheel
 
 on:
+  # Monthly rebuild to keep wheel up-to-date
+  schedule:
+    - cron: '0 3 1 * *'  # 1st of every month at 03:00 UTC
+
+  # Manual trigger with configurable versions
   workflow_dispatch:
     inputs:
       pyodide_docker_tag:
@@ -12,10 +17,18 @@ on:
         required: false
         default: '0.26.0'
 
+# Allow pushing commits
+permissions:
+  contents: write
+
 jobs:
   build-wheel:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    env:
+      DOCKER_TAG: ${{ inputs.pyodide_docker_tag || '20240928-chrome127-firefox128' }}
+      PYODIDE_VER: ${{ inputs.pyodide_version || '0.26.0' }}
 
     steps:
       - name: Checkout with submodules
@@ -27,11 +40,11 @@ jobs:
       - name: Build PyMuPDF WASM wheel
         run: |
           echo "=== Building PyMuPDF WASM wheel ==="
-          echo "Docker image: ghcr.io/pyodide/pyodide-env:${{ inputs.pyodide_docker_tag }}"
+          echo "Docker image: ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }}"
           docker run --rm \
             -v "${{ github.workspace }}/public/python_core/src/PyMuPDF":/src/PyMuPDF \
             -w /src/PyMuPDF \
-            ghcr.io/pyodide/pyodide-env:${{ inputs.pyodide_docker_tag }} \
+            ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }} \
             /bin/bash -c "pip install pyodide-build && python3 scripts/test.sh pyodide"
 
       - name: Find and verify wheel
@@ -40,7 +53,6 @@ jobs:
           echo "=== Searching for built wheel ==="
           WHEEL=$(find public/python_core -name "*.whl" -path "*/wheelhouse/*" | head -1)
           if [ -z "$WHEEL" ]; then
-            # Also check dist/ directory
             WHEEL=$(find public/python_core -name "*.whl" -path "*/dist/*" | head -1)
           fi
           if [ -z "$WHEEL" ]; then
@@ -54,7 +66,7 @@ jobs:
           echo "wheel_path=$WHEEL" >> "$GITHUB_OUTPUT"
           echo "wheel_name=$WHEEL_NAME" >> "$GITHUB_OUTPUT"
 
-          # Copy to public/wheels for smoke test
+          # Copy to public/wheels for smoke test and commit
           cp "$WHEEL" public/wheels/
           echo "Copied to public/wheels/$WHEEL_NAME"
 
@@ -66,7 +78,7 @@ jobs:
       - name: Smoke test — verify wheel loads in Pyodide
         run: |
           echo "=== Smoke test: loading wheel in Pyodide (Node.js) ==="
-          npm install pyodide@${{ inputs.pyodide_version }}
+          npm install pyodide@${{ env.PYODIDE_VER }}
 
           node --experimental-vm-modules << 'NODEEOF'
           const { loadPyodide } = require("pyodide");
@@ -100,7 +112,49 @@ jobs:
           });
           NODEEOF
 
-      - name: Upload wheel as artifact
+      - name: Commit wheel to repo
+        run: |
+          WHEEL_NAME="${{ steps.wheel.outputs.wheel_name }}"
+          OLD_WHEEL=$(ls public/wheels/*.whl 2>/dev/null | grep -v "$WHEEL_NAME" || true)
+
+          # Remove old wheel if filename changed
+          if [ -n "$OLD_WHEEL" ]; then
+            echo "Removing old wheel: $OLD_WHEEL"
+            rm -f $OLD_WHEEL
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add public/wheels/
+
+          # Check if wheel actually changed
+          if git diff --cached --quiet; then
+            echo "Wheel unchanged, skipping commit."
+          else
+            # Update worker.js if wheel filename changed
+            CURRENT_WHEEL=$(grep -oP "wheels/[^'\"]*\.whl" public/worker.js || true)
+            if [ -n "$CURRENT_WHEEL" ] && [ "$CURRENT_WHEEL" != "wheels/$WHEEL_NAME" ]; then
+              echo "Updating PYMUPDF_WHEEL_PATH in worker.js: $CURRENT_WHEEL → wheels/$WHEEL_NAME"
+              sed -i "s|$CURRENT_WHEEL|wheels/$WHEEL_NAME|g" public/worker.js
+              git add public/worker.js
+
+              # Also update sw.js if it references the wheel
+              if grep -q "$CURRENT_WHEEL" public/sw.js; then
+                sed -i "s|$CURRENT_WHEEL|wheels/$WHEEL_NAME|g" public/sw.js
+                git add public/sw.js
+              fi
+            fi
+
+            git commit -m "ci: rebuild PyMuPDF WASM wheel ($WHEEL_NAME)
+
+            Docker: ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }}
+            Pyodide: ${{ env.PYODIDE_VER }}
+            Smoke test: passed"
+            git push
+            echo "Committed and pushed new wheel."
+          fi
+
+      - name: Upload wheel as artifact (backup)
         uses: actions/upload-artifact@v4
         with:
           name: pymupdf-wasm-wheel
@@ -114,9 +168,7 @@ jobs:
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Wheel | \`${{ steps.wheel.outputs.wheel_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker image | \`ghcr.io/pyodide/pyodide-env:${{ inputs.pyodide_docker_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Pyodide version | \`${{ inputs.pyodide_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker image | \`ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pyodide version | \`${{ env.PYODIDE_VER }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke test | Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download the wheel from the **Artifacts** section above." >> $GITHUB_STEP_SUMMARY
-          echo "Place it in \`public/wheels/\` and update \`PYMUPDF_WHEEL_PATH\` in \`public/worker.js\`." >> $GITHUB_STEP_SUMMARY
+          echo "| Auto-committed | Yes |" >> $GITHUB_STEP_SUMMARY
