@@ -98,6 +98,12 @@ git submodule update --remote --merge   # Update to latest
 git clone --recursive ...               # Clone with submodule
 ```
 
+## Configuration
+
+### .claude/settings.local.json (not in git)
+- Local Claude Code permissions — matched by `*.local` in `.gitignore`
+- Each developer maintains their own; do not commit
+
 ## AI Development Workflow
 
 ### Before making any change

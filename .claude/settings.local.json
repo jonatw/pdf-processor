@@ -5,7 +5,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "WebSearch",
-      "Bash(git submodule:*)"
+      "Bash(git submodule:*)",
+      "Bash(git:*)"
     ],
     "deny": []
   }
