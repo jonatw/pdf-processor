@@ -60,7 +60,7 @@ PyMuPDF does not provide official Pyodide wheels on PyPI. You need to build it y
     ```bash
     mv public/python_core/wheelhouse/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl public/wheels/
     ```
-    *(Ensure the filename in `public/main.js` (`PYMUPDF_WHEEL_PATH`) matches this filename.)*
+    *(Ensure the filename in `public/worker.js` (`PYMUPDF_WHEEL_PATH`) matches this filename.)*
 
 ### 3. Install JavaScript Dependencies
 
@@ -161,17 +161,18 @@ cd ../../ # Back to web project root</code></pre>
 ```
 .
 ├── public/
-│   ├── python_core/        # Git Submodule: Your original Python project (pdf-watermark-remove)
-│   ├── wheels/             # Contains the PyMuPDF WASM wheel (.whl file)
-│   ├── sw.js               # Service Worker for PWA caching and offline support
-│   └── manifest.json       # PWA manifest file
-├── src/
-│   ├── main.js             # Core JavaScript logic (Pyodide initialization, UI interactions)
-│   └── style.css           # Custom CSS styles
-├── index.html              # Main HTML entry point
-├── vite.config.js          # Vite configuration
-├── package.json            # Project dependencies and scripts
-└── README.md               # This file
+│   ├── python_core/    # Git Submodule: original Python project (pdf-watermark-remove)
+│   ├── wheels/         # PyMuPDF WASM wheel (.whl file)
+│   ├── worker.js       # Web Worker: Pyodide bridge, PDF processing off main thread
+│   ├── sw.js           # Service Worker for PWA caching and offline support
+│   └── manifest.json   # PWA manifest file
+├── main.js             # UI logic: file handling, progress, theme, Worker communication
+├── style.css           # Custom CSS styles
+├── index.html          # Entry point (preload hints for WASM assets, no blocking scripts)
+├── vite.config.js      # Vite configuration
+├── package.json        # Project dependencies and scripts
+├── CLAUDE.md           # Claude Code development guide
+└── README.md           # This file
 ```
 
 ### Git Submodule Management
@@ -205,7 +206,7 @@ The `public/wheels/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl` file is 
         ```bash
         mv public/python_core/wheelhouse/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl public/wheels/
         ```
-        *(Always ensure the `PYMUPDF_WHEEL_PATH` in `src/main.js` matches the exact filename.)*
+        *(Always ensure the `PYMUPDF_WHEEL_PATH` in `public/worker.js` matches the exact filename.)*
 
 ## 📜 License
 
