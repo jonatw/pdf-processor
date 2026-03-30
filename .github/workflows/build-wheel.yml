@@ -8,14 +8,14 @@ on:
   # Manual trigger with configurable versions
   workflow_dispatch:
     inputs:
-      pyodide_docker_tag:
-        description: 'Pyodide Docker image tag (e.g. 20240928-chrome127-firefox128)'
-        required: false
-        default: '20240928-chrome127-firefox128'
       pyodide_version:
-        description: 'Pyodide CDN version for smoke test (e.g. 0.26.0)'
+        description: 'Pyodide version for build + smoke test (e.g. 0.26.4)'
         required: false
-        default: '0.26.0'
+        default: '0.26.4'
+      pymupdf_version:
+        description: 'PyMuPDF version (e.g. 1.26.7, or empty for latest)'
+        required: false
+        default: ''
 
 # Allow pushing commits
 permissions:
@@ -27,8 +27,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      DOCKER_TAG: ${{ inputs.pyodide_docker_tag || '20240928-chrome127-firefox128' }}
-      PYODIDE_VER: ${{ inputs.pyodide_version || '0.26.0' }}
+      PYODIDE_VER: ${{ inputs.pyodide_version || '0.26.4' }}
 
     steps:
       - name: Checkout with submodules
@@ -37,27 +36,48 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Build PyMuPDF WASM wheel
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build PyMuPDF WASM wheel with cibuildwheel
         run: |
           echo "=== Building PyMuPDF WASM wheel ==="
-          echo "Docker image: ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }}"
-          docker run --rm \
-            -v "${{ github.workspace }}/public/python_core/src/PyMuPDF":/src/PyMuPDF \
-            -w /src/PyMuPDF \
-            ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }} \
-            /bin/bash -c "pip install pyodide-build && python3 scripts/test.sh pyodide"
+          echo "Pyodide version: ${{ env.PYODIDE_VER }}"
+
+          pip install cibuildwheel
+
+          # Clone PyMuPDF source
+          PYMUPDF_VER="${{ inputs.pymupdf_version }}"
+          if [ -n "$PYMUPDF_VER" ]; then
+            echo "Cloning PyMuPDF version: $PYMUPDF_VER"
+            git clone --depth 1 --branch "$PYMUPDF_VER" https://github.com/pymupdf/PyMuPDF.git /tmp/PyMuPDF
+          else
+            echo "Cloning PyMuPDF latest"
+            git clone --depth 1 https://github.com/pymupdf/PyMuPDF.git /tmp/PyMuPDF
+          fi
+
+          cd /tmp/PyMuPDF
+
+          # Build WASM wheel using cibuildwheel with Pyodide platform
+          CIBW_ENVIRONMENT_PASS_LINUX="HAVE_LIBCRYPTO HAVE_TESSERACT" \
+          HAVE_LIBCRYPTO=no \
+          HAVE_TESSERACT=0 \
+          CIBW_BUILD="cp312-*" \
+          CIBW_DEPENDENCY_VERSIONS_PYODIDE="pinned" \
+          cibuildwheel --platform pyodide --output-dir /tmp/wheelhouse
+
+          echo "=== Build complete ==="
+          ls -lh /tmp/wheelhouse/
 
       - name: Find and verify wheel
         id: wheel
         run: |
           echo "=== Searching for built wheel ==="
-          WHEEL=$(find public/python_core -name "*.whl" -path "*/wheelhouse/*" | head -1)
-          if [ -z "$WHEEL" ]; then
-            WHEEL=$(find public/python_core -name "*.whl" -path "*/dist/*" | head -1)
-          fi
+          WHEEL=$(find /tmp/wheelhouse -name "*.whl" | head -1)
           if [ -z "$WHEEL" ]; then
             echo "ERROR: No wheel file found!"
-            find public/python_core -name "*.whl" 2>/dev/null
             exit 1
           fi
           echo "Found wheel: $WHEEL"
@@ -66,8 +86,8 @@ jobs:
           echo "wheel_path=$WHEEL" >> "$GITHUB_OUTPUT"
           echo "wheel_name=$WHEEL_NAME" >> "$GITHUB_OUTPUT"
 
-          # Copy to public/wheels for smoke test and commit
-          cp "$WHEEL" public/wheels/
+          # Copy to public/wheels/
+          cp "$WHEEL" "${{ github.workspace }}/public/wheels/"
           echo "Copied to public/wheels/$WHEEL_NAME"
 
       - name: Setup Node.js for smoke test
@@ -76,11 +96,12 @@ jobs:
           node-version: 20
 
       - name: Smoke test — verify wheel loads in Pyodide
+        working-directory: ${{ github.workspace }}
         run: |
           echo "=== Smoke test: loading wheel in Pyodide (Node.js) ==="
           npm install pyodide@${{ env.PYODIDE_VER }}
 
-          node --experimental-vm-modules << 'NODEEOF'
+          node << 'NODEEOF'
           const { loadPyodide } = require("pyodide");
 
           async function main() {
@@ -115,12 +136,12 @@ jobs:
       - name: Commit wheel to repo
         run: |
           WHEEL_NAME="${{ steps.wheel.outputs.wheel_name }}"
-          OLD_WHEEL=$(ls public/wheels/*.whl 2>/dev/null | grep -v "$WHEEL_NAME" || true)
+          OLD_WHEELS=$(ls public/wheels/*.whl 2>/dev/null | grep -v "$WHEEL_NAME" || true)
 
-          # Remove old wheel if filename changed
-          if [ -n "$OLD_WHEEL" ]; then
-            echo "Removing old wheel: $OLD_WHEEL"
-            rm -f $OLD_WHEEL
+          # Remove old wheel(s) if filename changed
+          if [ -n "$OLD_WHEELS" ]; then
+            echo "Removing old wheel(s): $OLD_WHEELS"
+            rm -f $OLD_WHEELS
           fi
 
           git config user.name 'github-actions[bot]'
@@ -147,9 +168,8 @@ jobs:
 
             git commit -m "ci: rebuild PyMuPDF WASM wheel ($WHEEL_NAME)
 
-            Docker: ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }}
-            Pyodide: ${{ env.PYODIDE_VER }}
-            Smoke test: passed"
+          Pyodide: ${{ env.PYODIDE_VER }}
+          Smoke test: passed"
             git push
             echo "Committed and pushed new wheel."
           fi
@@ -168,7 +188,6 @@ jobs:
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Wheel | \`${{ steps.wheel.outputs.wheel_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker image | \`ghcr.io/pyodide/pyodide-env:${{ env.DOCKER_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Pyodide version | \`${{ env.PYODIDE_VER }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke test | Passed |" >> $GITHUB_STEP_SUMMARY
           echo "| Auto-committed | Yes |" >> $GITHUB_STEP_SUMMARY
