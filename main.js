@@ -110,7 +110,8 @@ function log(message) {
 
 function addDownloadItem(blob, originalFileName) {
     const url = URL.createObjectURL(blob);
-    const processedFileName = `processed_${originalFileName}`;
+    const nameParts = originalFileName.replace(/\.pdf$/i, '');
+    const processedFileName = `${nameParts}_processed.pdf`;
     
     const item = document.createElement('a');
     item.href = url;
