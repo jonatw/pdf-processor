@@ -50,9 +50,11 @@ vite.config.js     # Vite build configuration
 ### Key Components
 
 1. **Pyodide Bridge** (`public/worker.js`)
-   - Initializes Pyodide runtime in a Web Worker
-   - Mounts `python_core/` to Pyodide virtual file system
-   - Installs PyMuPDF WASM wheel
+   - Initializes Pyodide runtime in a Web Worker **immediately on load** (required for PWA offline support)
+   - Upload UI is shown in parallel — user can select files while Pyodide loads in background
+   - Loads all Python core files via `Promise.all` (parallel fetch)
+   - Installs PyMuPDF WASM wheel via micropip
+   - Uses `ensureInitialized()` guard — processing waits for init to complete, but never triggers a second init
    - Exposes `js_progress_callback` for Python to update UI progress bar
 
 2. **Python Core** (`public/python_core/` — git submodule)
@@ -63,6 +65,25 @@ vite.config.js     # Vite build configuration
 3. **Service Worker** (`public/sw.js`)
    - "Network First" for Python logic; "Cache First" for heavy assets (WASM, wheels)
    - Uses `CACHE_NAME` to manage updates
+
+### Loading Architecture
+```
+Page load
+├── index.html renders immediately (upload UI visible)
+├── <link rel="preload"> starts downloading pyodide.asm.wasm, .asm.js, lock.json
+├── Service Worker installs → pre-caches core assets + PyMuPDF wheel
+└── Web Worker created
+    ├── importScripts(pyodide.js) — from CDN or SW cache
+    ├── loadPyodide() — streaming WASM compilation
+    ├── micropip.install(PyMuPDF wheel) — from SW cache on repeat visits
+    ├── Promise.all(Python core files) — parallel fetch
+    └── postMessage('ready') → init spinner hidden
+
+User selects file → can happen during init (queued until ready)
+User clicks Process → ensureInitialized() awaits if still loading
+```
+
+**Critical: Do NOT lazy-load Pyodide (e.g. on file-select).** The app is a PWA — offline users need all assets cached from the first visit. Deferring init would cause fetch failures offline.
 
 ### Watermark Removal Logic (Python Side)
 
@@ -115,6 +136,8 @@ git clone --recursive ...               # Clone with submodule
 - Check mobile responsiveness
 
 ### When modifying the Pyodide bridge (`public/worker.js`)
+- **Never defer Pyodide init to user action** — PWA offline mode requires all assets fetched on first visit
+- `ensureInitialized()` must be called at Worker creation, not on-demand
 - Ensure progress callbacks still work
 - Test with actual PDF watermark removal
 - Verify Service Worker cache invalidation
