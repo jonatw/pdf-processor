@@ -114,32 +114,41 @@ User clicks Process → ensureInitialized() awaits if still loading
 PyMuPDF does not provide official Pyodide wheels on PyPI — must build via `cibuildwheel`.
 
 **Automated (recommended):** GitHub Actions workflow `build-wheel.yml`
-- **Monthly cron** (1st of month) — auto-rebuilds and commits wheel to repo
+- **Monthly cron** (1st of month) — auto-rebuilds using last successful versions
 - **Manual trigger** — Actions tab → "Build PyMuPDF WASM Wheel" with version inputs:
-  - `pyodide_version`: Pyodide version (e.g. `0.29.3`)
-  - `pymupdf_version`: PyMuPDF version (e.g. `1.27.1`, or empty for latest)
+  - `pyodide_version`: Pyodide version (default auto-updates to last successful)
+  - `pymupdf_version`: PyMuPDF version (default auto-updates to last successful)
 - Smoke tests wheel in Node.js Pyodide (`import fitz`) before committing
 - Auto-updates `PYMUPDF_WHEEL_PATH` in `worker.js` and `sw.js` if filename changes
+- Auto-triggers **Deploy** workflow after successful build → GitHub Pages updated
+- Tracks successful versions in `pyodide-versions.json` and workflow defaults
 
 **Local build (fallback):**
 ```bash
 pip install cibuildwheel
 git clone --depth 1 https://github.com/pymupdf/PyMuPDF.git /tmp/PyMuPDF
 cd /tmp/PyMuPDF
-HAVE_LIBCRYPTO=no HAVE_TESSERACT=0 CIBW_BUILD="cp312-*" \
+HAVE_LIBCRYPTO=no HAVE_TESSERACT=0 CIBW_BUILD="cp313-*" \
+  CIBW_PYODIDE_VERSION=0.29.3 \
   cibuildwheel --platform pyodide --output-dir /tmp/wheelhouse
 ```
 - Copy wheel to `public/wheels/` and update `PYMUPDF_WHEEL_PATH` in `worker.js`
 
+**Version compatibility:**
+- Pyodide 0.26.x/0.27.x → Python 3.12 (`cp312`)
+- Pyodide 0.28+ → Python 3.13 (`cp313`)
+- The workflow auto-detects which to use based on `pyodide_version` input
+
 ### Upgrading Pyodide
-Pyodide CDN version is hardcoded in three places:
+Pyodide CDN version is hardcoded in these places:
 1. `public/worker.js` — `PYODIDE_CDN` constant
 2. `index.html` — `<link rel="preload">` URLs (3 lines)
-3. `build-wheel.yml` — default `pyodide_version` input
+3. `build-wheel.yml` — default `pyodide_version` input (auto-updated on success)
+4. `pyodide-versions.json` — auto-generated version tracking file
 
 To upgrade:
-1. Run `build-wheel.yml` with new `pyodide_version` — verify smoke test passes
-2. Update `worker.js` and `index.html` CDN URLs
+1. Run `build-wheel.yml` with new `pyodide_version` + `pymupdf_version` — verify smoke test passes
+2. Update `worker.js` and `index.html` CDN URLs to match
 3. Bump `CACHE_NAME` in `sw.js` to force cache refresh
 
 ### Git Submodule

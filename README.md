@@ -189,17 +189,20 @@ The Python backend (`pdf-watermark-remove`) is integrated as a Git Submodule at 
 
 The `public/wheels/` directory contains the pre-built PyMuPDF WASM wheel. It is automatically rebuilt monthly by the `build-wheel.yml` GitHub Actions workflow.
 
-**Manual rebuild via GitHub Actions:**
+**Automated rebuild via GitHub Actions:**
 1. Actions tab → "Build PyMuPDF WASM Wheel" → Run workflow
 2. Inputs: `pyodide_version` (e.g. `0.29.3`), `pymupdf_version` (e.g. `1.27.1`)
-3. Workflow: builds wheel → smoke tests in Node.js Pyodide → auto-commits to repo
+3. Workflow: builds wheel → smoke tests → auto-commits to repo → triggers deploy
+
+Version tracking: successful build versions are recorded in `pyodide-versions.json` and auto-updated as workflow defaults for the monthly cron.
 
 **Local build (fallback):**
 ```bash
 pip install cibuildwheel
 git clone --depth 1 https://github.com/pymupdf/PyMuPDF.git /tmp/PyMuPDF
 cd /tmp/PyMuPDF
-HAVE_LIBCRYPTO=no HAVE_TESSERACT=0 CIBW_BUILD="cp312-*" \
+HAVE_LIBCRYPTO=no HAVE_TESSERACT=0 CIBW_BUILD="cp313-*" \
+  CIBW_PYODIDE_VERSION=0.29.3 \
   cibuildwheel --platform pyodide --output-dir /tmp/wheelhouse
 cp /tmp/wheelhouse/*.whl public/wheels/
 ```
