@@ -23,9 +23,15 @@ const NETWORK_FIRST_PATHS = [
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      // We cache everything initially
-      return cache.addAll([...CORE_ASSETS, ...STATIC_ASSETS]);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Cache core assets (small, must succeed)
+      await cache.addAll(CORE_ASSETS);
+      // Cache large static assets individually (don't block install if one fails)
+      await Promise.allSettled(
+        STATIC_ASSETS.map(url =>
+          cache.add(url).catch(err => console.warn('SW: failed to cache', url, err.message))
+        )
+      );
     })
   );
 });
