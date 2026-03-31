@@ -111,17 +111,36 @@ User clicks Process → ensureInitialized() awaits if still loading
 ## Critical Notes
 
 ### PyMuPDF WASM Wheel
-The most complex part. PyMuPDF does not provide official Pyodide wheels on PyPI — must build manually in a Linux environment.
+PyMuPDF does not provide official Pyodide wheels on PyPI — must build via `cibuildwheel`.
 
-Build command (run from project root):
+**Automated (recommended):** GitHub Actions workflow `build-wheel.yml`
+- **Monthly cron** (1st of month) — auto-rebuilds and commits wheel to repo
+- **Manual trigger** — Actions tab → "Build PyMuPDF WASM Wheel" with version inputs:
+  - `pyodide_version`: Pyodide version (e.g. `0.29.3`)
+  - `pymupdf_version`: PyMuPDF version (e.g. `1.27.1`, or empty for latest)
+- Smoke tests wheel in Node.js Pyodide (`import fitz`) before committing
+- Auto-updates `PYMUPDF_WHEEL_PATH` in `worker.js` and `sw.js` if filename changes
+
+**Local build (fallback):**
 ```bash
-docker run -v "$PWD/python_core/src/PyMuPDF":/src emsdk-chrome127-firefox128 \
-  bash -c "pip install pyodide-build && python3 scripts/test.sh"
+pip install cibuildwheel
+git clone --depth 1 https://github.com/pymupdf/PyMuPDF.git /tmp/PyMuPDF
+cd /tmp/PyMuPDF
+HAVE_LIBCRYPTO=no HAVE_TESSERACT=0 CIBW_BUILD="cp312-*" \
+  cibuildwheel --platform pyodide --output-dir /tmp/wheelhouse
 ```
+- Copy wheel to `public/wheels/` and update `PYMUPDF_WHEEL_PATH` in `worker.js`
 
-- Must target Python 3.12 (Pyodide 0.26.x)
-- Output: `python_core/wheelhouse/PyMuPDF-*-wasm32-*.whl`
-- Move generated wheel to `public/wheels/` and update `PYMUPDF_WHEEL_PATH` in `worker.js`
+### Upgrading Pyodide
+Pyodide CDN version is hardcoded in three places:
+1. `public/worker.js` — `PYODIDE_CDN` constant
+2. `index.html` — `<link rel="preload">` URLs (3 lines)
+3. `build-wheel.yml` — default `pyodide_version` input
+
+To upgrade:
+1. Run `build-wheel.yml` with new `pyodide_version` — verify smoke test passes
+2. Update `worker.js` and `index.html` CDN URLs
+3. Bump `CACHE_NAME` in `sw.js` to force cache refresh
 
 ### Git Submodule
 `public/python_core/` is a git submodule:

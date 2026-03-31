@@ -187,35 +187,23 @@ The Python backend (`pdf-watermark-remove`) is integrated as a Git Submodule at 
 
 ### PyMuPDF WASM Wheel
 
-The `public/wheels/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl` file is crucial. This is a special build of PyMuPDF compiled for WebAssembly.
+The `public/wheels/` directory contains the pre-built PyMuPDF WASM wheel. It is automatically rebuilt monthly by the `build-wheel.yml` GitHub Actions workflow.
 
-*   **Building Your Own Wheel**:
-    Since official pre-built Pyodide wheels for PyMuPDF are not readily available, you need to build it yourself, ideally in a controlled Linux environment using Docker.
-    1.  Ensure Docker is running on a Linux host (or WSL/VM).
-    2.  Navigate to the **root of this web project**.
-    3.  Execute the Docker command below. This will set up a Pyodide build environment, clone PyMuPDF, and build the wheel. This process is resource-intensive and can take **5-20 minutes**.
+**Manual rebuild via GitHub Actions:**
+1. Actions tab → "Build PyMuPDF WASM Wheel" → Run workflow
+2. Inputs: `pyodide_version` (e.g. `0.29.3`), `pymupdf_version` (e.g. `1.27.1`)
+3. Workflow: builds wheel → smoke tests in Node.js Pyodide → auto-commits to repo
 
-        ```bash
-        docker run -it --rm -v "$(pwd)/public/python_core:/src/PyMuPDF" -w /src/PyMuPDF ghcr.io/pyodide/pyodide-env:20240928-chrome127-firefox128 /bin/bash -c "pip install pyodide-build && python3 scripts/test.py pyodide"
-        ```
-        *(**Note**: The Docker tag `20240928-chrome127-firefox128` is assumed to contain Python 3.12. If the build fails due to Python version, you might need to try a newer tag (e.g., `py313`) and comment out the Python version assertion in `public/python_core/scripts/test.py` temporarily.)*
+**Local build (fallback):**
+```bash
+pip install cibuildwheel
+git clone --depth 1 https://github.com/pymupdf/PyMuPDF.git /tmp/PyMuPDF
+cd /tmp/PyMuPDF
+HAVE_LIBCRYPTO=no HAVE_TESSERACT=0 CIBW_BUILD="cp312-*" \
+  cibuildwheel --platform pyodide --output-dir /tmp/wheelhouse
+cp /tmp/wheelhouse/*.whl public/wheels/
+```
 
-    4.  **Locate & Move the Wheel**:
-        After successful compilation, the `.whl` file will be in `public/python_core/dist/` or `public/python_core/wheelhouse/`. Move it to `public/wheels/`.
+Ensure `PYMUPDF_WHEEL_PATH` in `public/worker.js` matches the wheel filename.
 
-        ```bash
-        mv public/python_core/wheelhouse/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl public/wheels/
-        ```
-        *(Always ensure the `PYMUPDF_WHEEL_PATH` in `public/worker.js` matches the exact filename.)*
 
-## 📜 License
-
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
-
-This license is chosen to comply with the licensing requirements of **PyMuPDF** (and its underlying engine **MuPDF**), which is a core dependency of this project.
-
-*   **PyMuPDF / MuPDF**: AGPL-3.0
-*   **Pyodide**: MPL-2.0
-*   **Bootstrap**: MIT
-
-If you wish to use this project in a proprietary or closed-source commercial application, you must obtain a valid commercial license for MuPDF from [Artifex Software](https://artifex.com/).
