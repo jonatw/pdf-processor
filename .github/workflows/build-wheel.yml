@@ -60,12 +60,23 @@ jobs:
 
           cd /tmp/PyMuPDF
 
+          # Determine Python version from Pyodide version
+          # Pyodide 0.26.x = Python 3.12, Pyodide 0.27+ = Python 3.12, Pyodide 0.28+ = Python 3.13
+          PYODIDE_MINOR=$(echo "${{ env.PYODIDE_VER }}" | cut -d. -f2)
+          if [ "$PYODIDE_MINOR" -ge 28 ]; then
+            CIBW_PY="cp313-*"
+            echo "Pyodide >= 0.28 → building for Python 3.13"
+          else
+            CIBW_PY="cp312-*"
+            echo "Pyodide < 0.28 → building for Python 3.12"
+          fi
+
           # Build WASM wheel using cibuildwheel with Pyodide platform
           CIBW_ENVIRONMENT_PASS_LINUX="HAVE_LIBCRYPTO HAVE_TESSERACT" \
           HAVE_LIBCRYPTO=no \
           HAVE_TESSERACT=0 \
-          CIBW_BUILD="cp312-*" \
-          CIBW_DEPENDENCY_VERSIONS_PYODIDE="pinned" \
+          CIBW_BUILD="$CIBW_PY" \
+          CIBW_PYODIDE_VERSION="${{ env.PYODIDE_VER }}" \
           cibuildwheel --platform pyodide --output-dir /tmp/wheelhouse
 
           echo "=== Build complete ==="
