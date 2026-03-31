@@ -1,6 +1,6 @@
 // Web Worker that handles Python/Pyodide operations off the UI thread.
 
-const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.26.0/full/';
+const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/';
 const PYTHON_CORE_PATH = 'python_core';
 const PYMUPDF_WHEEL_PATH = 'wheels/pymupdf-1.27.1-cp313-none-pyodide_2025_0_wasm32.whl';
 

@@ -179,6 +179,22 @@ jobs:
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add public/wheels/ pyodide-versions.json
 
+          # Update Pyodide CDN version in worker.js and index.html
+          CURRENT_CDN_VER=$(grep -oP 'pyodide/v\K[0-9]+\.[0-9]+\.[0-9]+' public/worker.js | head -1 || true)
+          if [ -n "$CURRENT_CDN_VER" ] && [ "$CURRENT_CDN_VER" != "${{ env.PYODIDE_VER }}" ]; then
+            echo "Updating Pyodide CDN: v$CURRENT_CDN_VER → v${{ env.PYODIDE_VER }}"
+            sed -i "s|pyodide/v$CURRENT_CDN_VER|pyodide/v${{ env.PYODIDE_VER }}|g" public/worker.js
+            sed -i "s|pyodide/v$CURRENT_CDN_VER|pyodide/v${{ env.PYODIDE_VER }}|g" index.html
+            git add public/worker.js index.html
+
+            # Bump Service Worker cache version to force refresh
+            CURRENT_CACHE=$(grep -oP "pdf-remover-v\K[0-9]+" public/sw.js || echo "0")
+            NEW_CACHE=$((CURRENT_CACHE + 1))
+            sed -i "s|pdf-remover-v$CURRENT_CACHE|pdf-remover-v$NEW_CACHE|" public/sw.js
+            git add public/sw.js
+            echo "Bumped CACHE_NAME to pdf-remover-v$NEW_CACHE"
+          fi
+
           # Update worker.js if wheel filename changed
           CURRENT_WHEEL=$(grep -oP "wheels/[^'\"]*\.whl" public/worker.js || true)
           if [ -n "$CURRENT_WHEEL" ] && [ "$CURRENT_WHEEL" != "wheels/$WHEEL_NAME" ]; then
