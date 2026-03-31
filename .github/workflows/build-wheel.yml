@@ -9,17 +9,18 @@ on:
   workflow_dispatch:
     inputs:
       pyodide_version:
-        description: 'Pyodide version for build + smoke test (e.g. 0.26.4)'
+        description: 'Pyodide version for build + smoke test'
         required: false
-        default: '0.26.4'
+        default: '0.26.4'  # pyodide-version-pin
       pymupdf_version:
-        description: 'PyMuPDF version (e.g. 1.26.7, or empty for latest)'
+        description: 'PyMuPDF version (empty = latest)'
         required: false
-        default: ''
+        default: '1.27.1'  # pymupdf-version-pin
 
-# Allow pushing commits
+# Allow pushing commits and triggering other workflows
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build-wheel:
@@ -27,7 +28,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      PYODIDE_VER: ${{ inputs.pyodide_version || '0.26.4' }}
+      PYODIDE_VER: ${{ inputs.pyodide_version || '0.26.4' }}  # fallback matches pin above
 
     steps:
       - name: Checkout with submodules
@@ -61,7 +62,7 @@ jobs:
           cd /tmp/PyMuPDF
 
           # Determine Python version from Pyodide version
-          # Pyodide 0.26.x = Python 3.12, Pyodide 0.27+ = Python 3.12, Pyodide 0.28+ = Python 3.13
+          # Pyodide 0.26.x = Python 3.12, Pyodide 0.27.x = Python 3.12, Pyodide 0.28+ = Python 3.13
           PYODIDE_MINOR=$(echo "${{ env.PYODIDE_VER }}" | cut -d. -f2)
           if [ "$PYODIDE_MINOR" -ge 28 ]; then
             CIBW_PY="cp313-*"
@@ -96,6 +97,10 @@ jobs:
           WHEEL_NAME=$(basename "$WHEEL")
           echo "wheel_path=$WHEEL" >> "$GITHUB_OUTPUT"
           echo "wheel_name=$WHEEL_NAME" >> "$GITHUB_OUTPUT"
+
+          # Extract PyMuPDF version from wheel filename (e.g. pymupdf-1.27.1-cp313-...)
+          PYMUPDF_BUILT_VER=$(echo "$WHEEL_NAME" | sed 's/pymupdf-\([^-]*\)-.*/\1/')
+          echo "pymupdf_version=$PYMUPDF_BUILT_VER" >> "$GITHUB_OUTPUT"
 
           # Copy to public/wheels/
           cp "$WHEEL" "${{ github.workspace }}/public/wheels/"
@@ -144,9 +149,10 @@ jobs:
           });
           NODEEOF
 
-      - name: Commit wheel to repo
+      - name: Commit wheel and update version tracking
         run: |
           WHEEL_NAME="${{ steps.wheel.outputs.wheel_name }}"
+          PYMUPDF_VER="${{ steps.wheel.outputs.pymupdf_version }}"
           OLD_WHEELS=$(ls public/wheels/*.whl 2>/dev/null | grep -v "$WHEEL_NAME" || true)
 
           # Remove old wheel(s) if filename changed
@@ -155,35 +161,57 @@ jobs:
             rm -f $OLD_WHEELS
           fi
 
+          # Update pyodide-versions.json to track successful build
+          cat > pyodide-versions.json << VJSON
+          {
+            "pyodide": "${{ env.PYODIDE_VER }}",
+            "pymupdf": "$PYMUPDF_VER",
+            "wheel": "$WHEEL_NAME",
+            "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          VJSON
+
+          # Update workflow defaults to last successful versions
+          sed -i "s|default: '0\.[0-9]*\.[0-9]*'  # pyodide-version-pin|default: '${{ env.PYODIDE_VER }}'  # pyodide-version-pin|" .github/workflows/build-wheel.yml
+          sed -i "s|default: '[0-9]*\.[0-9]*\.[0-9]*'  # pymupdf-version-pin|default: '$PYMUPDF_VER'  # pymupdf-version-pin|" .github/workflows/build-wheel.yml
+
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add public/wheels/
+          git add public/wheels/ pyodide-versions.json
 
-          # Check if wheel actually changed
-          if git diff --cached --quiet; then
+          # Update worker.js if wheel filename changed
+          CURRENT_WHEEL=$(grep -oP "wheels/[^'\"]*\.whl" public/worker.js || true)
+          if [ -n "$CURRENT_WHEEL" ] && [ "$CURRENT_WHEEL" != "wheels/$WHEEL_NAME" ]; then
+            echo "Updating PYMUPDF_WHEEL_PATH in worker.js: $CURRENT_WHEEL → wheels/$WHEEL_NAME"
+            sed -i "s|$CURRENT_WHEEL|wheels/$WHEEL_NAME|g" public/worker.js
+            git add public/worker.js
+
+            if grep -q "$CURRENT_WHEEL" public/sw.js; then
+              sed -i "s|$CURRENT_WHEEL|wheels/$WHEEL_NAME|g" public/sw.js
+              git add public/sw.js
+            fi
+          fi
+
+          # Check if anything changed
+          if git diff --cached --quiet && git diff --quiet .github/workflows/build-wheel.yml; then
             echo "Wheel unchanged, skipping commit."
           else
-            # Update worker.js if wheel filename changed
-            CURRENT_WHEEL=$(grep -oP "wheels/[^'\"]*\.whl" public/worker.js || true)
-            if [ -n "$CURRENT_WHEEL" ] && [ "$CURRENT_WHEEL" != "wheels/$WHEEL_NAME" ]; then
-              echo "Updating PYMUPDF_WHEEL_PATH in worker.js: $CURRENT_WHEEL → wheels/$WHEEL_NAME"
-              sed -i "s|$CURRENT_WHEEL|wheels/$WHEEL_NAME|g" public/worker.js
-              git add public/worker.js
-
-              # Also update sw.js if it references the wheel
-              if grep -q "$CURRENT_WHEEL" public/sw.js; then
-                sed -i "s|$CURRENT_WHEEL|wheels/$WHEEL_NAME|g" public/sw.js
-                git add public/sw.js
-              fi
-            fi
-
+            git add .github/workflows/build-wheel.yml
             git commit -m "ci: rebuild PyMuPDF WASM wheel ($WHEEL_NAME)
 
           Pyodide: ${{ env.PYODIDE_VER }}
+          PyMuPDF: $PYMUPDF_VER
           Smoke test: passed"
             git push
             echo "Committed and pushed new wheel."
           fi
+
+      - name: Trigger deploy to GitHub Pages
+        run: |
+          echo "=== Triggering deploy workflow ==="
+          gh workflow run deploy.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload wheel as artifact (backup)
         uses: actions/upload-artifact@v4
@@ -199,6 +227,7 @@ jobs:
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Wheel | \`${{ steps.wheel.outputs.wheel_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Pyodide version | \`${{ env.PYODIDE_VER }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| PyMuPDF | \`${{ steps.wheel.outputs.pymupdf_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pyodide | \`${{ env.PYODIDE_VER }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke test | Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Auto-committed | Yes |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy triggered | Yes |" >> $GITHUB_STEP_SUMMARY
