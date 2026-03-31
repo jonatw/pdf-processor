@@ -1,17 +1,13 @@
 name: Build PyMuPDF WASM Wheel
 
 on:
-  # Monthly rebuild to keep wheel up-to-date
-  schedule:
-    - cron: '0 3 1 * *'  # 1st of every month at 03:00 UTC
-
-  # Manual trigger with configurable versions
+  # Manual trigger only
   workflow_dispatch:
     inputs:
       pyodide_version:
         description: 'Pyodide version for build + smoke test'
         required: false
-        default: '0.26.4'  # pyodide-version-pin
+        default: '0.29.3'  # pyodide-version-pin
       pymupdf_version:
         description: 'PyMuPDF version (empty = latest)'
         required: false
@@ -28,7 +24,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      PYODIDE_VER: ${{ inputs.pyodide_version || '0.26.4' }}  # fallback matches pin above
+      PYODIDE_VER: ${{ inputs.pyodide_version || '0.29.3' }}  # fallback matches pin above
 
     steps:
       - name: Checkout with submodules
