@@ -8,7 +8,7 @@ const CORE_ASSETS = [
 ];
 
 const STATIC_ASSETS = [
-  'wheels/pymupdf-1.26.7-cp312-abi3-pyodide_2024_0_wasm32.whl'
+  'wheels/pymupdf-1.27.1-cp313-none-pyodide_2025_0_wasm32.whl'
 ];
 
 // Files that should always try to fetch from network first (to get latest logic)
