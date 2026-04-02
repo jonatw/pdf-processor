@@ -97,6 +97,10 @@ function log(message) {
     console.log(message);
 }
 
+// --- Version display ---
+const versionEl = document.getElementById('app-version');
+if (versionEl) versionEl.textContent = __GIT_HASH__;
+
 // --- Show upload UI immediately while Pyodide loads in background ---
 if (uploadSection) uploadSection.classList.remove('hidden');
 
