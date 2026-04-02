@@ -120,6 +120,34 @@
                     </div>
                     <div class="accordion-item">
                         <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq-loading">
+                                <i class="bi bi-cloud-arrow-up me-2"></i> Why is the first load so slow?
+                            </button>
+                        </h2>
+                        <div id="faq-loading" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body text-muted">
+                                <strong>The tool is downloading its processing engine.</strong><br>
+                                On your first visit, the app downloads a one-time package (~15 MB) that lets it process PDFs entirely on your device.
+                                This only happens once — after that, everything is cached and the app loads instantly, even offline.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq-original">
+                                <i class="bi bi-file-earmark-pdf me-2"></i> Will it modify my original file?
+                            </button>
+                        </h2>
+                        <div id="faq-original" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body text-muted">
+                                <strong>No. Your original file is never touched.</strong><br>
+                                The tool creates a brand new file with the changes applied. Your original PDF stays exactly as it was.
+                                You can always compare the two side by side.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
                                 <i class="bi bi-file-earmark-break me-2"></i> Is there a file size limit?
                             </button>
