@@ -14,7 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Frontend:** HTML5, SCSS, JavaScript Modules
 - **Build:** [Vite 5](https://vitejs.dev) + [Sass](https://sass-lang.com)
 - **UI:** [Bootstrap 5.3](https://getbootstrap.com) (tree-shaken via SCSS, native Dark Mode)
-- **Icons:** Bootstrap Icons (14 icons, self-hosted via CSS masks — no icon font)
+- **Icons:** Bootstrap Icons (16 icons, self-hosted via CSS masks — no icon font)
+- **ZIP Download:** [JSZip](https://stuk.github.io/jszip/) (dynamically imported, code-split by Vite)
 - **WASM Runtime:** [Pyodide v0.26](https://pyodide.org) (Python 3.12 in WASM)
 - **PDF Library:** [PyMuPDF](https://pymupdf.readthedocs.io) (Emscripten/WASM wheel)
 
@@ -44,7 +45,7 @@ public/
 └── manifest.json  # PWA manifest
 scss/
 ├── custom-bootstrap.scss  # Tree-shaken Bootstrap (only used components)
-└── _icons.scss            # 14 Bootstrap Icons as CSS masks (no font)
+└── _icons.scss            # 16 Bootstrap Icons as CSS masks (no font)
 main.js            # UI logic, file handling, Pyodide bridge
 style.scss         # App styles (imports SCSS modules above)
 index.html         # Entry point (no CDN CSS/JS — all bundled by Vite)
@@ -53,7 +54,7 @@ vite.config.js     # Vite build configuration
 
 ### Frontend Build
 - **Bootstrap CSS** is imported via SCSS (`scss/custom-bootstrap.scss`), only including used components
-- **Bootstrap Icons** — 14 icons self-hosted as CSS mask-image in `scss/_icons.scss` (no icon font CDN)
+- **Bootstrap Icons** — 16 icons self-hosted as CSS mask-image in `scss/_icons.scss` (no icon font CDN)
 - **Bootstrap JS** — only `collapse` component imported (for FAQ accordion)
 - Adding a new Bootstrap component: add its `@import` to `custom-bootstrap.scss`
 - Adding a new icon: add its SVG data to `_icons.scss` and regenerate from `node_modules/bootstrap-icons/icons/`
@@ -77,6 +78,38 @@ vite.config.js     # Vite build configuration
    - "Network First" for Python logic; "Cache First" for heavy assets (WASM, wheels)
    - Uses `CACHE_NAME` to manage updates
 
+### UI State Machine (`main.js`)
+
+The upload card uses a **Linear In-Place Flow** — a single card transitions through 3 states:
+
+```
+State 1 (SELECT)          State 2 (PROCESSING)       State 3 (DONE)
+┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+│ Drop Zone        │      │ Processing 1/3   │      │ ✅ Results       │
+│ File List        │ ──→  │ filename.pdf     │ ──→  │ Download buttons │
+│ [Process Button] │      │ ████░░░ 60%      │      │ [Mini Drop Zone] │
+└──────────────────┘      └──────────────────┘      └──────────────────┘
+                                                           │
+                                                     drag files into
+                                                     mini drop zone
+                                                           │
+                                                    ┌──────┴──────┐
+                                                    │ all files   │ no
+                                                    │ downloaded? │───→ confirmation
+                                                    └──────┬──────┘     dialog
+                                                       yes │
+                                                           ↓
+                                                    back to State 1
+```
+
+**Key design decisions:**
+- `selectedFiles` is a `Map<filename, File>` — deduplicates by name, supports add/remove
+- Processing is **sequential** (Pyodide is single-threaded, WASM memory-constrained)
+- `activeFileQueue` snapshots the queue at processing start — user's `selectedFiles` is cleared
+- Each result has an internal `downloaded` flag (no visual indicator) — gates confirmation when starting new batch
+- JSZip is dynamically imported only when "Download All (.zip)" is clicked (code-split by Vite)
+- Global `dragover`/`drop` listeners on `document` prevent browser from opening dropped PDFs
+
 ### Loading Architecture
 ```
 Page load
@@ -90,7 +123,7 @@ Page load
     ├── Promise.all(Python core files) — parallel fetch
     └── postMessage('ready') → init spinner hidden
 
-User selects file → can happen during init (queued until ready)
+User selects files → can happen during init (queued until ready)
 User clicks Process → ensureInitialized() awaits if still loading
 ```
 
@@ -169,10 +202,12 @@ git clone --recursive ...               # Clone with submodule
 ### Before making any change
 1. Read this file to understand the area being changed.
 
-### When modifying UI (`main.js`, `style.css`, `index.html`)
+### When modifying UI (`main.js`, `style.scss`, `index.html`)
 - Test with both light and dark themes
-- Verify drag-and-drop file upload works
+- Verify drag-and-drop file upload works (both main drop zone and mini drop zone)
+- Test multi-file flow: select multiple → process → download individually and via ZIP
 - Check mobile responsiveness
+- The upload card has 3 state containers (`#state-select`, `#state-processing`, `#state-done`) — only one is visible at a time, managed by `setState()`
 
 ### When modifying the Pyodide bridge (`public/worker.js`)
 - **Never defer Pyodide init to user action** — PWA offline mode requires all assets fetched on first visit

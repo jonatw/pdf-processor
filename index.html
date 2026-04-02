@@ -63,44 +63,48 @@
       
             <div id="upload-section" class="card shadow-sm hidden">
                 <div class="card-body p-4">
-                    <div id="drop-zone" class="upload-area mb-3">
-                        <i class="bi bi-cloud-arrow-up upload-icon"></i>
-                        <h5 class="mb-2">Drag & Drop PDF here</h5>
-                        <p class="text-muted mb-0">or click to browse</p>
-                        <input type="file" id="pdf-upload" accept=".pdf" class="d-none">
-                    </div>
-                    <div id="file-info" class="d-flex align-items-center justify-content-between p-2 border rounded mb-3 hidden">
-                        <div class="d-flex align-items-center overflow-hidden">
-                            <i class="bi bi-file-earmark-pdf text-danger fs-4 me-2"></i>
-                            <span id="selected-filename" class="text-truncate fw-medium">filename.pdf</span>
+                    <!-- State 1: Select Files -->
+                    <div id="state-select">
+                        <div id="drop-zone" class="upload-area mb-3">
+                            <i class="bi bi-cloud-arrow-up upload-icon"></i>
+                            <h5 class="mb-2">Drag & Drop PDFs here</h5>
+                            <p class="text-muted mb-0">or click to browse</p>
+                            <input type="file" id="pdf-upload" accept=".pdf" multiple class="d-none">
                         </div>
-                        <button id="remove-file-btn" class="btn btn-close" aria-label="Remove file"></button>
+                        <div id="file-list"></div>
+                        <button id="process-btn" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2" disabled>
+                            <i class="bi bi-magic"></i>
+                            Remove Watermark
+                        </button>
                     </div>
-                    <button id="process-btn" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2" disabled>
-                        <i class="bi bi-magic"></i>
-                        Process PDF
-                    </button>
-                </div>
-            </div>
 
-            <!-- Progress Bar Section -->
-            <div id="progress-section" class="card border-0 bg-transparent mt-4 hidden">
-                <div class="d-flex justify-content-between mb-1">
-                    <span id="progress-status" class="small fw-bold text-primary">Processing...</span>
-                    <span id="progress-percent" class="small text-muted">0%</span>
-                </div>
-                <div class="progress" style="height: 8px;">
-                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                </div>
-            </div>
-            
-            <!-- Results Section -->
-            <div id="results-section" class="mt-5 hidden">
-                <h4 class="h5 mb-3 d-flex align-items-center gap-2">
-                    <i class="bi bi-check-circle-fill text-success"></i> Processed Files
-                </h4>
-                <div id="results-list" class="list-group shadow-sm">
-                    <!-- Download links will be appended here -->
+                    <!-- State 2: Processing -->
+                    <div id="state-processing" class="hidden">
+                        <div class="processing-info">
+                            <div id="processing-counter" class="processing-counter"></div>
+                            <div id="current-file-name" class="current-file text-truncate"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 mt-3">
+                            <span id="progress-status" class="small fw-bold text-primary">Processing...</span>
+                            <span id="progress-percent" class="small text-muted">0%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- State 3: Done -->
+                    <div id="state-done" class="hidden">
+                        <div id="results-header"></div>
+                        <div id="results-list"></div>
+                        <div id="undownloaded-confirm" class="undownloaded-confirm hidden"></div>
+                        <hr class="my-3">
+                        <div id="mini-drop-zone" class="mini-drop-zone">
+                            <i class="bi bi-cloud-arrow-up me-1"></i>
+                            Drop files or click to process more
+                            <input type="file" id="mini-pdf-upload" accept=".pdf" multiple class="d-none">
+                        </div>
+                    </div>
                 </div>
             </div>
 

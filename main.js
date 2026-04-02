@@ -6,22 +6,47 @@ import 'bootstrap/js/dist/collapse'  // Only component used (FAQ accordion)
 const worker = new Worker(`${import.meta.env.BASE_URL}worker.js`);
 let pyodideReady = false;
 
+// --- State Machine ---
+const STATE = { SELECT: 'select', PROCESSING: 'processing', DONE: 'done' };
+let currentState = STATE.SELECT;
+let selectedFiles = new Map();  // Map<filename, File>
+let results = [];               // Array<{ id, originalName, processedName, blob, url, size, downloaded, error? }>
+let activeFileQueue = null;     // snapshot during processing
+let processingIndex = 0;
+let processingTotal = 0;
+
+// --- DOM Element References ---
 const logElement = document.getElementById('status-log');
 const initSection = document.getElementById('init-section');
 const initProgressBar = document.getElementById('init-progress-bar');
 const initError = document.getElementById('init-error');
 const networkBadge = document.getElementById('network-badge');
 const uploadSection = document.getElementById('upload-section');
-const processBtn = document.getElementById('process-btn');
 
-// Drag & Drop Elements
+// State containers
+const stateSelect = document.getElementById('state-select');
+const stateProcessing = document.getElementById('state-processing');
+const stateDone = document.getElementById('state-done');
+
+// State 1: Select
 const dropZone = document.getElementById('drop-zone');
 const pdfUploadInput = document.getElementById('pdf-upload');
-const fileInfoDiv = document.getElementById('file-info');
-const selectedFilenameSpan = document.getElementById('selected-filename');
-const removeFileBtn = document.getElementById('remove-file-btn');
+const fileListDiv = document.getElementById('file-list');
+const processBtn = document.getElementById('process-btn');
 
-let selectedFile = null;
+// State 2: Processing
+const processingCounter = document.getElementById('processing-counter');
+const currentFileName = document.getElementById('current-file-name');
+const progressStatus = document.getElementById('progress-status');
+const progressPercent = document.getElementById('progress-percent');
+const progressBar = document.getElementById('progress-bar');
+
+// State 3: Done
+const resultsHeader = document.getElementById('results-header');
+const resultsList = document.getElementById('results-list');
+const miniDropZone = document.getElementById('mini-drop-zone');
+const miniPdfUpload = document.getElementById('mini-pdf-upload');
+const undownloadedConfirm = document.getElementById('undownloaded-confirm');
 
 // --- Network Status Detection ---
 function updateNetworkBadge() {
@@ -36,15 +61,7 @@ function updateNetworkBadge() {
 }
 updateNetworkBadge();
 window.addEventListener('online', updateNetworkBadge);
-window.addEventListener('offline', updateNetworkBadge); 
-
-const progressSection = document.getElementById('progress-section');
-const progressBar = document.getElementById('progress-bar');
-const progressStatus = document.getElementById('progress-status');
-const progressPercent = document.getElementById('progress-percent');
-
-const resultsSection = document.getElementById('results-section');
-const resultsList = document.getElementById('results-list');
+window.addEventListener('offline', updateNetworkBadge);
 
 // --- Theme Toggling Logic ---
 const themeToggleBtn = document.getElementById('theme-toggle');
@@ -82,66 +99,208 @@ if (themeToggleBtn) {
         setTheme(newTheme);
     });
 }
-// ----------------------------
 
-function updateProgress(status, percent) {
-    if (progressSection && progressSection.classList.contains('hidden')) {
-        progressSection.classList.remove('hidden');
-    }
-    if (progressBar) {
-        const pct = Math.round(percent);
-        progressBar.style.width = `${pct}%`;
-        progressBar.setAttribute('aria-valuenow', pct);
-        
-        if (progressPercent) { 
-            progressPercent.textContent = `${pct}%`;
-        }
-    }
-    if (progressStatus) {
-        progressStatus.textContent = status || "Processing...";
-    }
+// --- Utility Functions ---
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
 function log(message) {
-    if (logElement) {
-        logElement.textContent = message;
-    }
+    if (logElement) logElement.textContent = message;
     console.log(message);
 }
 
-function addDownloadItem(blob, originalFileName) {
-    const url = URL.createObjectURL(blob);
-    const nameParts = originalFileName.replace(/\.pdf$/i, '');
-    const processedFileName = `${nameParts}_processed.pdf`;
-    
-    const item = document.createElement('a');
-    item.href = url;
-    item.download = processedFileName;
-    item.className = "list-group-item list-group-item-action list-group-item-success d-flex justify-content-between align-items-center rounded-3 mb-2";
-    item.innerHTML = `
-        <div>
-            <span class="fw-bold">${processedFileName}</span>
-            <small class="d-block text-muted">Click to download</small>
-        </div>
-        <i class="bi bi-download"></i>
-    `;
-    
-    if (resultsList) {
-        resultsList.insertBefore(item, resultsList.firstChild); 
+// --- State Management ---
+function setState(newState) {
+    currentState = newState;
+    stateSelect.classList.toggle('hidden', newState !== STATE.SELECT);
+    stateProcessing.classList.toggle('hidden', newState !== STATE.PROCESSING);
+    stateDone.classList.toggle('hidden', newState !== STATE.DONE);
+
+    if (newState === STATE.DONE) {
+        renderResults();
     }
-    if (resultsSection) resultsSection.classList.remove('hidden');
 }
 
 // --- Show upload UI immediately while Pyodide loads in background ---
 if (uploadSection) uploadSection.classList.remove('hidden');
 
+// --- File List Rendering ---
+function renderFileList() {
+    fileListDiv.innerHTML = '';
+
+    for (const [name, file] of selectedFiles) {
+        const item = document.createElement('div');
+        item.className = 'file-list-item';
+        item.innerHTML = `
+            <div class="d-flex align-items-center overflow-hidden flex-grow-1">
+                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                <span class="file-name fw-medium">${name}</span>
+            </div>
+            <span class="file-size">${formatFileSize(file.size)}</span>
+            <button class="remove-btn" aria-label="Remove file" data-filename="${name}">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        `;
+        item.querySelector('.remove-btn').addEventListener('click', () => {
+            selectedFiles.delete(name);
+            renderFileList();
+        });
+        fileListDiv.appendChild(item);
+    }
+
+    // Update process button
+    const count = selectedFiles.size;
+    processBtn.disabled = count === 0;
+    if (count === 0) {
+        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+    } else if (count === 1) {
+        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+    } else {
+        processBtn.innerHTML = `<i class="bi bi-magic"></i> Remove Watermark (${count} files)`;
+    }
+}
+
+// --- File Handling ---
+function handleFiles(files) {
+    let rejected = 0;
+    for (const file of files) {
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            selectedFiles.set(file.name, file);
+        } else {
+            rejected++;
+        }
+    }
+    if (rejected > 0) {
+        alert(`${rejected} non-PDF file(s) were skipped. Only PDF files are supported.`);
+    }
+    renderFileList();
+}
+
+// --- Drag & Drop Logic (Main Drop Zone) ---
+function setupDropZone(zone, input) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+    });
+    ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, () => zone.classList.add('drag-over'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, () => zone.classList.remove('drag-over'), false);
+    });
+    zone.addEventListener('click', (e) => {
+        if (e.target === input) return;
+        input.click();
+    });
+    input.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            if (currentState === STATE.DONE) {
+                handleProcessMore(this.files);
+            } else {
+                handleFiles(this.files);
+            }
+        }
+        this.value = '';
+    });
+}
+
+if (dropZone && pdfUploadInput) {
+    setupDropZone(dropZone, pdfUploadInput);
+    dropZone.addEventListener('drop', e => {
+        handleFiles(e.dataTransfer.files);
+    }, false);
+}
+
+// --- Mini Drop Zone (in Done state) ---
+if (miniDropZone && miniPdfUpload) {
+    setupDropZone(miniDropZone, miniPdfUpload);
+    miniDropZone.addEventListener('drop', e => {
+        handleProcessMore(e.dataTransfer.files);
+    }, false);
+}
+
+// --- Global Drag Prevention ---
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => e.preventDefault());
+
+// --- Sequential Multi-File Processing ---
+function startProcessing() {
+    if (selectedFiles.size === 0) return;
+
+    activeFileQueue = [...selectedFiles.values()];
+    selectedFiles.clear();
+    renderFileList();
+
+    results = [];
+    processingIndex = 0;
+    processingTotal = activeFileQueue.length;
+
+    setState(STATE.PROCESSING);
+    processNextFile();
+}
+
+async function processNextFile() {
+    if (processingIndex >= processingTotal) {
+        activeFileQueue = null;
+        setState(STATE.DONE);
+        return;
+    }
+
+    const file = activeFileQueue[processingIndex];
+    updateProcessingUI(processingIndex + 1, processingTotal, file.name);
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        worker.postMessage({
+            type: 'process',
+            fileData: uint8Array,
+            fileName: file.name
+        }, [uint8Array.buffer]);
+    } catch (e) {
+        results.push({
+            id: crypto.randomUUID(),
+            originalName: file.name,
+            processedName: null,
+            blob: null,
+            url: null,
+            size: 0,
+            downloaded: false,
+            error: `Failed to read file: ${e.message}`
+        });
+        processingIndex++;
+        processNextFile();
+    }
+}
+
+function updateProcessingUI(current, total, filename) {
+    if (total === 1) {
+        processingCounter.textContent = 'Processing...';
+    } else {
+        processingCounter.textContent = `Processing ${current}/${total}...`;
+    }
+    currentFileName.textContent = filename;
+    progressBar.style.width = '0%';
+    progressBar.classList.remove('bg-danger');
+    progressBar.setAttribute('aria-valuenow', 0);
+    progressStatus.textContent = 'Starting PDF analysis...';
+    progressPercent.textContent = '0%';
+}
+
+// Process button click
+if (processBtn) {
+    processBtn.addEventListener('click', startProcessing);
+}
+
 // --- Worker Event Handling ---
 worker.onmessage = function(e) {
-    const { status, message, step, totalSteps, progressStatus, progressPercent, resultData, originalName } = e.data;
+    const { status, message, step, totalSteps, progressStatus: pStatus, progressPercent: pPercent, resultData, originalName } = e.data;
 
     if (status === 'init') {
         log(message);
-        // Update init progress bar
         if (initProgressBar && step && totalSteps) {
             const pct = Math.round((step / totalSteps) * 100);
             initProgressBar.style.width = `${pct}%`;
@@ -149,7 +308,6 @@ worker.onmessage = function(e) {
     } else if (status === 'ready') {
         pyodideReady = true;
         log(message);
-        // Fill progress bar to 100% then fade out
         if (initProgressBar) initProgressBar.style.width = '100%';
         if (initSection) {
             initSection.classList.add('init-fade-out');
@@ -158,18 +316,32 @@ worker.onmessage = function(e) {
             }, { once: true });
         }
     } else if (status === 'progress') {
-        updateProgress(progressStatus, progressPercent);
+        // Update progress bar for current file
+        const pct = Math.round(pPercent);
+        progressBar.style.width = `${pct}%`;
+        progressBar.setAttribute('aria-valuenow', pct);
+        progressPercent.textContent = `${pct}%`;
+        if (pStatus) progressStatus.textContent = pStatus;
     } else if (status === 'complete') {
         const blob = new Blob([resultData], { type: 'application/pdf' });
-        addDownloadItem(blob, originalName);
-        
-        updateProgress("Processing completed!", 100);
-        processBtn.disabled = false;
-        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
-    } else if (status === 'error') {
-        console.error("Worker Error:", message);
+        const nameParts = originalName.replace(/\.pdf$/i, '');
+        const processedName = `${nameParts}_processed.pdf`;
+        const url = URL.createObjectURL(blob);
 
-        // Init error (Pyodide not ready yet) — show in init-section
+        results.push({
+            id: crypto.randomUUID(),
+            originalName,
+            processedName,
+            blob,
+            url,
+            size: blob.size,
+            downloaded: false
+        });
+
+        processingIndex++;
+        processNextFile();
+    } else if (status === 'error') {
+        // Init error (Pyodide not ready yet)
         if (!pyodideReady && initSection) {
             if (initProgressBar) initProgressBar.style.width = '0%';
             initSection.classList.remove('init-fade-out');
@@ -191,131 +363,213 @@ worker.onmessage = function(e) {
                         </div>`;
                 }
             }
+        } else if (currentState === STATE.PROCESSING) {
+            // Per-file processing error — record and continue
+            const file = activeFileQueue[processingIndex];
+            results.push({
+                id: crypto.randomUUID(),
+                originalName: file ? file.name : 'Unknown',
+                processedName: null,
+                blob: null,
+                url: null,
+                size: 0,
+                downloaded: false,
+                error: message
+            });
+            processingIndex++;
+            processNextFile();
         } else {
-            // Processing error
-            alert(`Processing Failed: ${message}`);
-            updateProgress("Failed!", 0);
-            if (progressBar) progressBar.classList.add('bg-danger');
-
-            processBtn.disabled = false;
-            processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+            // Unexpected error outside processing
+            alert(`Error: ${message}`);
         }
     }
 };
 
-// --- Drag & Drop Logic ---
-if (dropZone) {
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
+// --- Results Rendering ---
+function renderResults() {
+    const successResults = results.filter(r => !r.error);
+    const errorResults = results.filter(r => r.error);
 
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+    resultsHeader.innerHTML = '';
+    resultsList.innerHTML = '';
 
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-
-    function highlight(e) {
-        dropZone.classList.add('drag-over');
-    }
-
-    function unhighlight(e) {
-        dropZone.classList.remove('drag-over');
-    }
-
-    dropZone.addEventListener('drop', handleDrop, false);
-    dropZone.addEventListener('click', () => pdfUploadInput.click());
-}
-
-function handleDrop(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    handleFiles(files);
-}
-
-if (pdfUploadInput) {
-    pdfUploadInput.addEventListener('change', function() {
-        handleFiles(this.files);
-    });
-}
-
-function handleFiles(files) {
-    if (files.length > 0) {
-        const file = files[0];
-        if (file.type === 'application/pdf') {
-            selectedFile = file;
-            updateFileInfo(file.name);
-        } else {
-            alert('Only PDF files are allowed.');
+    // Header
+    if (successResults.length === 1 && errorResults.length === 0) {
+        resultsHeader.innerHTML = `
+            <div class="text-center mb-3">
+                <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                <h5 class="mt-2">Watermark removed!</h5>
+            </div>`;
+    } else {
+        let headerText = `${successResults.length} file${successResults.length !== 1 ? 's' : ''} processed`;
+        if (errorResults.length > 0) {
+            headerText += `, ${errorResults.length} failed`;
         }
+        resultsHeader.innerHTML = `
+            <div class="text-center mb-3">
+                <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                <h5 class="mt-2">${headerText}</h5>
+            </div>`;
     }
-}
 
-function updateFileInfo(filename) {
-    if (dropZone) dropZone.classList.add('hidden');
-    if (fileInfoDiv) fileInfoDiv.classList.remove('hidden');
-    if (selectedFilenameSpan) selectedFilenameSpan.textContent = filename;
-    if (processBtn) processBtn.disabled = false;
-}
-
-if (removeFileBtn) {
-    removeFileBtn.addEventListener('click', () => {
-        selectedFile = null;
-        if (pdfUploadInput) pdfUploadInput.value = ''; // Reset input
-        if (dropZone) dropZone.classList.remove('hidden');
-        if (fileInfoDiv) fileInfoDiv.classList.add('hidden');
-        if (processBtn) processBtn.disabled = true;
-    });
-}
-
-// --- Process Button Logic (Sends message to Worker) ---
-if (processBtn) {
-    processBtn.addEventListener('click', async () => {
-        if (!selectedFile) {
-            alert("Please select a PDF file first.");
-            return;
+    // Single file: large CTA button
+    if (successResults.length === 1 && errorResults.length === 0) {
+        const r = successResults[0];
+        const cta = document.createElement('div');
+        cta.className = 'text-center mb-2';
+        cta.innerHTML = `
+            <a href="${r.url}" download="${r.processedName}" class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2 mb-1">
+                <i class="bi bi-download"></i> Download PDF
+            </a>
+            <small class="text-muted">${r.processedName} (${formatFileSize(r.size)})</small>
+        `;
+        cta.querySelector('a').addEventListener('click', () => { r.downloaded = true; });
+        resultsList.appendChild(cta);
+    } else {
+        // Multiple files: list rows
+        for (const r of successResults) {
+            const item = document.createElement('div');
+            item.className = 'result-item';
+            item.innerHTML = `
+                <div class="result-info">
+                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                    <span class="result-name fw-medium">${r.processedName}</span>
+                </div>
+                <span class="result-size">${formatFileSize(r.size)}</span>
+                <a href="${r.url}" download="${r.processedName}" class="btn btn-sm btn-outline-success download-btn" title="Download">
+                    <i class="bi bi-download"></i>
+                </a>
+            `;
+            item.querySelector('a').addEventListener('click', () => { r.downloaded = true; });
+            resultsList.appendChild(item);
         }
 
-        processBtn.disabled = true;
-        processBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-        
-        if (progressSection) progressSection.classList.remove('hidden');
-        if (progressBar) progressBar.classList.remove('bg-danger');
-        updateProgress("Starting PDF analysis...", 0); 
-
-        try {
-            const arrayBuffer = await selectedFile.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-
-            // Send to Worker
-            worker.postMessage({
-                type: 'process',
-                fileData: uint8Array,
-                fileName: selectedFile.name
-            }, [uint8Array.buffer]); // Transferable for performance
-
-        } catch (e) {
-            console.error(e);
-            alert(`Failed to read file: ${e.message}`);
-            processBtn.disabled = false;
-            processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+        // Download All ZIP button (when >1 successful files)
+        if (successResults.length > 1) {
+            const zipBtn = document.createElement('button');
+            zipBtn.className = 'btn btn-outline-primary w-100 mt-2 d-flex align-items-center justify-content-center gap-2';
+            zipBtn.innerHTML = '<i class="bi bi-file-earmark-zip"></i> Download All (.zip)';
+            zipBtn.addEventListener('click', downloadAllAsZip);
+            resultsList.appendChild(zipBtn);
         }
+    }
+
+    // Error results
+    for (const r of errorResults) {
+        const item = document.createElement('div');
+        item.className = 'result-item error';
+        item.innerHTML = `
+            <div class="result-info">
+                <i class="bi bi-exclamation-triangle text-danger"></i>
+                <span class="result-name fw-medium">${r.originalName}</span>
+            </div>
+            <small class="text-danger">${r.error}</small>
+        `;
+        resultsList.appendChild(item);
+    }
+
+    // Hide confirmation if visible
+    undownloadedConfirm.classList.add('hidden');
+}
+
+// --- ZIP Download ---
+async function downloadAllAsZip() {
+    const { default: JSZip } = await import('jszip');
+    const zip = new JSZip();
+    const successResults = results.filter(r => !r.error);
+
+    for (const r of successResults) {
+        zip.file(r.processedName, r.blob);
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'processed_pdfs.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+    // Mark all as downloaded
+    successResults.forEach(r => { r.downloaded = true; });
+}
+
+// --- Process More (Mini Drop Zone) ---
+function handleProcessMore(files) {
+    const validFiles = [];
+    for (const file of files) {
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            validFiles.push(file);
+        }
+    }
+    if (validFiles.length === 0) {
+        alert('Only PDF files are supported.');
+        return;
+    }
+
+    const undownloaded = results.filter(r => !r.error && !r.downloaded);
+
+    if (undownloaded.length === 0) {
+        // All downloaded — silently transition
+        transitionToNewBatch(validFiles);
+    } else {
+        // Show confirmation
+        showUndownloadedConfirmation(undownloaded.length, validFiles);
+    }
+}
+
+function showUndownloadedConfirmation(count, pendingFiles) {
+    undownloadedConfirm.classList.remove('hidden');
+    undownloadedConfirm.innerHTML = `
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-exclamation-triangle text-warning"></i>
+            <span class="confirm-text">${count} file${count !== 1 ? 's' : ''} not yet downloaded.</span>
+        </div>
+        <div class="confirm-actions">
+            <button class="btn btn-sm btn-outline-primary" id="confirm-download-all">
+                <i class="bi bi-download me-1"></i>Download All
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="confirm-discard">
+                Discard & Continue
+            </button>
+        </div>
+    `;
+
+    document.getElementById('confirm-download-all').addEventListener('click', async () => {
+        await downloadAllAsZip();
+        transitionToNewBatch(pendingFiles);
     });
+
+    document.getElementById('confirm-discard').addEventListener('click', () => {
+        transitionToNewBatch(pendingFiles);
+    });
+}
+
+function transitionToNewBatch(validFiles) {
+    cleanupResults();
+    selectedFiles.clear();
+    for (const file of validFiles) {
+        selectedFiles.set(file.name, file);
+    }
+    setState(STATE.SELECT);
+    renderFileList();
+}
+
+function cleanupResults() {
+    for (const r of results) {
+        if (r.url) URL.revokeObjectURL(r.url);
+    }
+    results = [];
 }
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        // Use Vite's BASE_URL to ensure correct path in both dev (/) and prod (/repo-name/)
         const swPath = `${import.meta.env.BASE_URL}sw.js`;
-        
         navigator.serviceWorker.register(swPath)
             .then(registration => {
                 console.log('ServiceWorker registration successful with scope: ', registration.scope);
