@@ -26,39 +26,34 @@
   <body>
     <div id="app" class="d-flex flex-column min-vh-100">
         <!-- Navbar / Header -->
-        <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm position-relative">
             <div class="container">
                 <a class="navbar-brand d-flex align-items-center gap-2" href="#">
                     <img src="pdf-icon.svg" alt="Logo" width="24" height="24" class="d-inline-block align-text-top">
                     <span class="fw-bold">PDF Processor</span>
                 </a>
-                <button class="btn btn-outline-secondary btn-sm" id="theme-toggle" aria-label="Toggle Dark Mode">
-                    <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
-                </button>
+                <div id="init-status" class="d-flex align-items-center gap-2 ms-3">
+                    <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+                    <span id="status-log" class="small text-muted d-none d-sm-inline">Preparing...</span>
+                </div>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <span id="network-badge" class="badge"></span>
+                    <button class="btn btn-outline-secondary btn-sm" id="theme-toggle" aria-label="Toggle Dark Mode">
+                        <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="init-progress" class="navbar-init-progress">
+                <div id="init-progress-bar" class="bg-info" style="width: 0%; height: 100%;"></div>
             </div>
         </nav>
+        <div id="init-error" class="container col-12 col-lg-8 col-xl-6 hidden"></div>
 
         <div class="container main-container py-4 col-12 col-lg-8 col-xl-6">
-            <div class="text-center mb-5">
-                <p class="lead text-muted">
+            <div class="text-center mb-3">
+                <p class="lead text-muted mb-0">
                     Process PDFs <strong>100% locally</strong> in your browser for maximum privacy.
                 </p>
-            </div>
-            
-            <div id="init-section" class="card border-info mb-4 init-fade">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
-                            <span id="status-log" class="fw-medium">Preparing...</span>
-                        </div>
-                        <span id="network-badge" class="badge"></span>
-                    </div>
-                    <div class="progress" style="height: 6px;">
-                        <div id="init-progress-bar" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
-                    </div>
-                    <div id="init-error" class="mt-2 hidden"></div>
-                </div>
             </div>
       
             <div id="upload-section" class="card shadow-sm hidden">

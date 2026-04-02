@@ -17,7 +17,8 @@ let results = [];
 
 // --- DOM Element References ---
 const logElement = document.getElementById('status-log');
-const initSection = document.getElementById('init-section');
+const initStatus = document.getElementById('init-status');
+const initProgress = document.getElementById('init-progress');
 const initProgressBar = document.getElementById('init-progress-bar');
 const initError = document.getElementById('init-error');
 const networkBadge = document.getElementById('network-badge');
@@ -38,10 +39,9 @@ const downloadAllBtn = document.getElementById('download-all-btn');
 function updateNetworkBadge() {
     if (!networkBadge) return;
     if (navigator.onLine) {
-        networkBadge.textContent = 'Online';
-        networkBadge.className = 'badge bg-success';
+        networkBadge.classList.add('hidden');
     } else {
-        networkBadge.textContent = 'Offline (cached)';
+        networkBadge.textContent = 'Cached';
         networkBadge.className = 'badge bg-secondary';
     }
 }
@@ -342,10 +342,17 @@ worker.onmessage = function(e) {
         pyodideReady = true;
         log(message);
         if (initProgressBar) initProgressBar.style.width = '100%';
-        if (initSection) {
-            initSection.classList.add('init-fade-out');
-            initSection.addEventListener('animationend', () => {
-                initSection.classList.add('hidden');
+        // Fade out navbar init indicators
+        if (initStatus) {
+            initStatus.classList.add('init-fade-out');
+            initStatus.addEventListener('animationend', () => {
+                initStatus.classList.add('hidden');
+            }, { once: true });
+        }
+        if (initProgress) {
+            initProgress.classList.add('init-fade-out');
+            initProgress.addEventListener('animationend', () => {
+                initProgress.classList.add('hidden');
             }, { once: true });
         }
     } else if (status === 'progress') {
@@ -368,10 +375,10 @@ worker.onmessage = function(e) {
         processNextFile();
     } else if (status === 'error') {
         // Init error (Pyodide not ready yet)
-        if (!pyodideReady && initSection) {
+        if (!pyodideReady && initStatus) {
             if (initProgressBar) initProgressBar.style.width = '0%';
-            initSection.classList.remove('init-fade-out');
-            const spinner = initSection.querySelector('.spinner-border');
+            initStatus.classList.remove('init-fade-out');
+            const spinner = initStatus.querySelector('.spinner-border');
             if (spinner) spinner.classList.add('hidden');
 
             if (initError) {
