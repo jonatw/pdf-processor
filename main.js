@@ -27,6 +27,8 @@ const dropZone = document.getElementById('drop-zone');
 const pdfUploadInput = document.getElementById('pdf-upload');
 const fileListDiv = document.getElementById('file-list');
 const processBtn = document.getElementById('process-btn');
+const suffixOption = document.getElementById('suffix-option');
+const suffixToggle = document.getElementById('suffix-toggle');
 
 const resultsSection = document.getElementById('results-section');
 const resultsList = document.getElementById('results-list');
@@ -129,6 +131,7 @@ function renderFileList() {
     }
 
     const count = selectedFiles.size;
+    suffixOption.classList.toggle('hidden', count === 0);
     processBtn.disabled = count === 0 || isProcessing;
     if (count <= 1) {
         processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
@@ -350,7 +353,7 @@ worker.onmessage = function(e) {
     } else if (status === 'complete') {
         const blob = new Blob([resultData], { type: 'application/pdf' });
         const nameParts = originalName.replace(/\.pdf$/i, '');
-        const processedName = `${nameParts}_processed.pdf`;
+        const processedName = suffixToggle.checked ? `${nameParts}_processed.pdf` : originalName;
         const url = URL.createObjectURL(blob);
 
         // Find the result entry for this file

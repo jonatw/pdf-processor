@@ -70,6 +70,12 @@
                         <input type="file" id="pdf-upload" accept=".pdf" multiple class="d-none">
                     </div>
                     <div id="file-list"></div>
+                    <div id="suffix-option" class="form-check mb-3 hidden">
+                        <input class="form-check-input" type="checkbox" id="suffix-toggle" checked>
+                        <label class="form-check-label small text-muted" for="suffix-toggle">
+                            Add "_processed" suffix to output filename
+                        </label>
+                    </div>
                     <button id="process-btn" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2" disabled>
                         <i class="bi bi-magic"></i>
                         Remove Watermark
