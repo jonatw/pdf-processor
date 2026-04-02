@@ -6,14 +6,14 @@ import 'bootstrap/js/dist/collapse'  // Only component used (FAQ accordion)
 const worker = new Worker(`${import.meta.env.BASE_URL}worker.js`);
 let pyodideReady = false;
 
-// --- State Machine ---
-const STATE = { SELECT: 'select', PROCESSING: 'processing', DONE: 'done' };
-let currentState = STATE.SELECT;
+// --- Multi-file state ---
 let selectedFiles = new Map();  // Map<filename, File>
-let results = [];               // Array<{ id, originalName, processedName, blob, url, size, downloaded, error? }>
-let activeFileQueue = null;     // snapshot during processing
+let processingQueue = [];       // Array<File> — snapshot during processing
 let processingIndex = 0;
-let processingTotal = 0;
+let isProcessing = false;
+
+// Results: Array<{ id, originalName, processedName, blob, url, size, error? }>
+let results = [];
 
 // --- DOM Element References ---
 const logElement = document.getElementById('status-log');
@@ -23,30 +23,14 @@ const initError = document.getElementById('init-error');
 const networkBadge = document.getElementById('network-badge');
 const uploadSection = document.getElementById('upload-section');
 
-// State containers
-const stateSelect = document.getElementById('state-select');
-const stateProcessing = document.getElementById('state-processing');
-const stateDone = document.getElementById('state-done');
-
-// State 1: Select
 const dropZone = document.getElementById('drop-zone');
 const pdfUploadInput = document.getElementById('pdf-upload');
 const fileListDiv = document.getElementById('file-list');
 const processBtn = document.getElementById('process-btn');
 
-// State 2: Processing
-const processingCounter = document.getElementById('processing-counter');
-const currentFileName = document.getElementById('current-file-name');
-const progressStatus = document.getElementById('progress-status');
-const progressPercent = document.getElementById('progress-percent');
-const progressBar = document.getElementById('progress-bar');
-
-// State 3: Done
-const resultsHeader = document.getElementById('results-header');
+const resultsSection = document.getElementById('results-section');
 const resultsList = document.getElementById('results-list');
-const miniDropZone = document.getElementById('mini-drop-zone');
-const miniPdfUpload = document.getElementById('mini-pdf-upload');
-const undownloadedConfirm = document.getElementById('undownloaded-confirm');
+const downloadAllBtn = document.getElementById('download-all-btn');
 
 // --- Network Status Detection ---
 function updateNetworkBadge() {
@@ -113,18 +97,6 @@ function log(message) {
     console.log(message);
 }
 
-// --- State Management ---
-function setState(newState) {
-    currentState = newState;
-    stateSelect.classList.toggle('hidden', newState !== STATE.SELECT);
-    stateProcessing.classList.toggle('hidden', newState !== STATE.PROCESSING);
-    stateDone.classList.toggle('hidden', newState !== STATE.DONE);
-
-    if (newState === STATE.DONE) {
-        renderResults();
-    }
-}
-
 // --- Show upload UI immediately while Pyodide loads in background ---
 if (uploadSection) uploadSection.classList.remove('hidden');
 
@@ -141,7 +113,7 @@ function renderFileList() {
                 <span class="file-name fw-medium">${name}</span>
             </div>
             <span class="file-size">${formatFileSize(file.size)}</span>
-            <button class="remove-btn" aria-label="Remove file" data-filename="${name}">
+            <button class="remove-btn" aria-label="Remove file">
                 <i class="bi bi-x-lg"></i>
             </button>
         `;
@@ -152,12 +124,9 @@ function renderFileList() {
         fileListDiv.appendChild(item);
     }
 
-    // Update process button
     const count = selectedFiles.size;
-    processBtn.disabled = count === 0;
-    if (count === 0) {
-        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
-    } else if (count === 1) {
+    processBtn.disabled = count === 0 || isProcessing;
+    if (count <= 1) {
         processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
     } else {
         processBtn.innerHTML = `<i class="bi bi-magic"></i> Remove Watermark (${count} files)`;
@@ -180,77 +149,156 @@ function handleFiles(files) {
     renderFileList();
 }
 
-// --- Drag & Drop Logic (Main Drop Zone) ---
-function setupDropZone(zone, input) {
+// --- Drag & Drop Logic ---
+if (dropZone && pdfUploadInput) {
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        zone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
     });
     ['dragenter', 'dragover'].forEach(eventName => {
-        zone.addEventListener(eventName, () => zone.classList.add('drag-over'), false);
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
     });
     ['dragleave', 'drop'].forEach(eventName => {
-        zone.addEventListener(eventName, () => zone.classList.remove('drag-over'), false);
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
     });
-    zone.addEventListener('click', (e) => {
-        if (e.target === input) return;
-        input.click();
-    });
-    input.addEventListener('change', function() {
-        if (this.files.length > 0) {
-            if (currentState === STATE.DONE) {
-                handleProcessMore(this.files);
-            } else {
-                handleFiles(this.files);
-            }
-        }
+    dropZone.addEventListener('drop', e => handleFiles(e.dataTransfer.files), false);
+    dropZone.addEventListener('click', () => pdfUploadInput.click());
+
+    pdfUploadInput.addEventListener('change', function() {
+        if (this.files.length > 0) handleFiles(this.files);
         this.value = '';
     });
-}
-
-if (dropZone && pdfUploadInput) {
-    setupDropZone(dropZone, pdfUploadInput);
-    dropZone.addEventListener('drop', e => {
-        handleFiles(e.dataTransfer.files);
-    }, false);
-}
-
-// --- Mini Drop Zone (in Done state) ---
-if (miniDropZone && miniPdfUpload) {
-    setupDropZone(miniDropZone, miniPdfUpload);
-    miniDropZone.addEventListener('drop', e => {
-        handleProcessMore(e.dataTransfer.files);
-    }, false);
 }
 
 // --- Global Drag Prevention ---
 document.addEventListener('dragover', e => e.preventDefault());
 document.addEventListener('drop', e => e.preventDefault());
 
+// --- Results Rendering ---
+function addResultItem(result) {
+    const item = document.createElement('div');
+    item.className = 'result-item';
+    item.id = `result-${result.id}`;
+
+    if (result.error) {
+        item.classList.add('error');
+        item.innerHTML = `
+            <div class="result-info">
+                <i class="bi bi-exclamation-triangle text-danger"></i>
+                <span class="result-name fw-medium">${result.originalName}</span>
+            </div>
+            <small class="text-danger text-truncate ms-2">${result.error}</small>
+        `;
+    } else if (result.blob) {
+        // Completed — show download
+        item.innerHTML = `
+            <div class="result-info">
+                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                <span class="result-name fw-medium">${result.processedName}</span>
+            </div>
+            <span class="result-size">${formatFileSize(result.size)}</span>
+            <a href="${result.url}" download="${result.processedName}" class="btn btn-sm btn-outline-success download-btn" title="Download">
+                <i class="bi bi-download"></i>
+            </a>
+        `;
+    } else {
+        // Processing — show spinner
+        item.innerHTML = `
+            <div class="result-info">
+                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                <span class="result-name fw-medium">${result.originalName}</span>
+            </div>
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Processing...</span>
+            </div>
+        `;
+    }
+
+    resultsList.appendChild(item);
+    resultsSection.classList.remove('hidden');
+}
+
+function updateResultItem(result) {
+    const item = document.getElementById(`result-${result.id}`);
+    if (!item) return;
+
+    item.className = 'result-item';
+    if (result.error) {
+        item.classList.add('error');
+        item.innerHTML = `
+            <div class="result-info">
+                <i class="bi bi-exclamation-triangle text-danger"></i>
+                <span class="result-name fw-medium">${result.originalName}</span>
+            </div>
+            <small class="text-danger text-truncate ms-2">${result.error}</small>
+        `;
+    } else {
+        item.innerHTML = `
+            <div class="result-info">
+                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                <span class="result-name fw-medium">${result.processedName}</span>
+            </div>
+            <span class="result-size">${formatFileSize(result.size)}</span>
+            <a href="${result.url}" download="${result.processedName}" class="btn btn-sm btn-outline-success download-btn" title="Download">
+                <i class="bi bi-download"></i>
+            </a>
+        `;
+    }
+
+    updateDownloadAllButton();
+}
+
+function updateDownloadAllButton() {
+    const downloadable = results.filter(r => r.blob && !r.error);
+    if (downloadable.length > 1) {
+        downloadAllBtn.classList.remove('hidden');
+    } else {
+        downloadAllBtn.classList.add('hidden');
+    }
+}
+
 // --- Sequential Multi-File Processing ---
 function startProcessing() {
     if (selectedFiles.size === 0) return;
 
-    activeFileQueue = [...selectedFiles.values()];
+    isProcessing = true;
+    processingQueue = [...selectedFiles.values()];
     selectedFiles.clear();
     renderFileList();
 
-    results = [];
-    processingIndex = 0;
-    processingTotal = activeFileQueue.length;
+    processBtn.disabled = true;
+    processBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
 
-    setState(STATE.PROCESSING);
+    processingIndex = 0;
+
+    // Create result placeholders (processing state) for each file
+    for (const file of processingQueue) {
+        const result = {
+            id: crypto.randomUUID(),
+            originalName: file.name,
+            processedName: null,
+            blob: null,
+            url: null,
+            size: 0
+        };
+        results.push(result);
+        addResultItem(result);
+    }
+
     processNextFile();
 }
 
 async function processNextFile() {
-    if (processingIndex >= processingTotal) {
-        activeFileQueue = null;
-        setState(STATE.DONE);
+    if (processingIndex >= processingQueue.length) {
+        // All done
+        isProcessing = false;
+        processingQueue = [];
+        processBtn.disabled = selectedFiles.size === 0;
+        processBtn.innerHTML = '<i class="bi bi-magic"></i> Remove Watermark';
+        updateDownloadAllButton();
         return;
     }
 
-    const file = activeFileQueue[processingIndex];
-    updateProcessingUI(processingIndex + 1, processingTotal, file.name);
+    const file = processingQueue[processingIndex];
 
     try {
         const arrayBuffer = await file.arrayBuffer();
@@ -261,43 +309,21 @@ async function processNextFile() {
             fileName: file.name
         }, [uint8Array.buffer]);
     } catch (e) {
-        results.push({
-            id: crypto.randomUUID(),
-            originalName: file.name,
-            processedName: null,
-            blob: null,
-            url: null,
-            size: 0,
-            downloaded: false,
-            error: `Failed to read file: ${e.message}`
-        });
+        const result = results[results.length - processingQueue.length + processingIndex];
+        result.error = `Failed to read file: ${e.message}`;
+        updateResultItem(result);
         processingIndex++;
         processNextFile();
     }
 }
 
-function updateProcessingUI(current, total, filename) {
-    if (total === 1) {
-        processingCounter.textContent = 'Processing...';
-    } else {
-        processingCounter.textContent = `Processing ${current}/${total}...`;
-    }
-    currentFileName.textContent = filename;
-    progressBar.style.width = '0%';
-    progressBar.classList.remove('bg-danger');
-    progressBar.setAttribute('aria-valuenow', 0);
-    progressStatus.textContent = 'Starting PDF analysis...';
-    progressPercent.textContent = '0%';
-}
-
-// Process button click
 if (processBtn) {
     processBtn.addEventListener('click', startProcessing);
 }
 
 // --- Worker Event Handling ---
 worker.onmessage = function(e) {
-    const { status, message, step, totalSteps, progressStatus: pStatus, progressPercent: pPercent, resultData, originalName } = e.data;
+    const { status, message, step, totalSteps, progressStatus, progressPercent, resultData, originalName } = e.data;
 
     if (status === 'init') {
         log(message);
@@ -316,27 +342,20 @@ worker.onmessage = function(e) {
             }, { once: true });
         }
     } else if (status === 'progress') {
-        // Update progress bar for current file
-        const pct = Math.round(pPercent);
-        progressBar.style.width = `${pct}%`;
-        progressBar.setAttribute('aria-valuenow', pct);
-        progressPercent.textContent = `${pct}%`;
-        if (pStatus) progressStatus.textContent = pStatus;
+        // Progress updates are for current file — could add per-item progress bar later
     } else if (status === 'complete') {
         const blob = new Blob([resultData], { type: 'application/pdf' });
         const nameParts = originalName.replace(/\.pdf$/i, '');
         const processedName = `${nameParts}_processed.pdf`;
         const url = URL.createObjectURL(blob);
 
-        results.push({
-            id: crypto.randomUUID(),
-            originalName,
-            processedName,
-            blob,
-            url,
-            size: blob.size,
-            downloaded: false
-        });
+        // Find the result entry for this file
+        const result = results[results.length - processingQueue.length + processingIndex];
+        result.processedName = processedName;
+        result.blob = blob;
+        result.url = url;
+        result.size = blob.size;
+        updateResultItem(result);
 
         processingIndex++;
         processNextFile();
@@ -363,207 +382,42 @@ worker.onmessage = function(e) {
                         </div>`;
                 }
             }
-        } else if (currentState === STATE.PROCESSING) {
+        } else if (isProcessing) {
             // Per-file processing error — record and continue
-            const file = activeFileQueue[processingIndex];
-            results.push({
-                id: crypto.randomUUID(),
-                originalName: file ? file.name : 'Unknown',
-                processedName: null,
-                blob: null,
-                url: null,
-                size: 0,
-                downloaded: false,
-                error: message
-            });
+            const result = results[results.length - processingQueue.length + processingIndex];
+            result.error = message;
+            updateResultItem(result);
             processingIndex++;
             processNextFile();
         } else {
-            // Unexpected error outside processing
             alert(`Error: ${message}`);
         }
     }
 };
 
-// --- Results Rendering ---
-function renderResults() {
-    const successResults = results.filter(r => !r.error);
-    const errorResults = results.filter(r => r.error);
-
-    resultsHeader.innerHTML = '';
-    resultsList.innerHTML = '';
-
-    // Header
-    if (successResults.length === 1 && errorResults.length === 0) {
-        resultsHeader.innerHTML = `
-            <div class="text-center mb-3">
-                <i class="bi bi-check-circle-fill text-success fs-1"></i>
-                <h5 class="mt-2">Watermark removed!</h5>
-            </div>`;
-    } else {
-        let headerText = `${successResults.length} file${successResults.length !== 1 ? 's' : ''} processed`;
-        if (errorResults.length > 0) {
-            headerText += `, ${errorResults.length} failed`;
-        }
-        resultsHeader.innerHTML = `
-            <div class="text-center mb-3">
-                <i class="bi bi-check-circle-fill text-success fs-1"></i>
-                <h5 class="mt-2">${headerText}</h5>
-            </div>`;
-    }
-
-    // Single file: large CTA button
-    if (successResults.length === 1 && errorResults.length === 0) {
-        const r = successResults[0];
-        const cta = document.createElement('div');
-        cta.className = 'text-center mb-2';
-        cta.innerHTML = `
-            <a href="${r.url}" download="${r.processedName}" class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2 mb-1">
-                <i class="bi bi-download"></i> Download PDF
-            </a>
-            <small class="text-muted">${r.processedName} (${formatFileSize(r.size)})</small>
-        `;
-        cta.querySelector('a').addEventListener('click', () => { r.downloaded = true; });
-        resultsList.appendChild(cta);
-    } else {
-        // Multiple files: list rows
-        for (const r of successResults) {
-            const item = document.createElement('div');
-            item.className = 'result-item';
-            item.innerHTML = `
-                <div class="result-info">
-                    <i class="bi bi-file-earmark-pdf text-danger"></i>
-                    <span class="result-name fw-medium">${r.processedName}</span>
-                </div>
-                <span class="result-size">${formatFileSize(r.size)}</span>
-                <a href="${r.url}" download="${r.processedName}" class="btn btn-sm btn-outline-success download-btn" title="Download">
-                    <i class="bi bi-download"></i>
-                </a>
-            `;
-            item.querySelector('a').addEventListener('click', () => { r.downloaded = true; });
-            resultsList.appendChild(item);
-        }
-
-        // Download All ZIP button (when >1 successful files)
-        if (successResults.length > 1) {
-            const zipBtn = document.createElement('button');
-            zipBtn.className = 'btn btn-outline-primary w-100 mt-2 d-flex align-items-center justify-content-center gap-2';
-            zipBtn.innerHTML = '<i class="bi bi-file-earmark-zip"></i> Download All (.zip)';
-            zipBtn.addEventListener('click', downloadAllAsZip);
-            resultsList.appendChild(zipBtn);
-        }
-    }
-
-    // Error results
-    for (const r of errorResults) {
-        const item = document.createElement('div');
-        item.className = 'result-item error';
-        item.innerHTML = `
-            <div class="result-info">
-                <i class="bi bi-exclamation-triangle text-danger"></i>
-                <span class="result-name fw-medium">${r.originalName}</span>
-            </div>
-            <small class="text-danger">${r.error}</small>
-        `;
-        resultsList.appendChild(item);
-    }
-
-    // Hide confirmation if visible
-    undownloadedConfirm.classList.add('hidden');
-}
-
 // --- ZIP Download ---
-async function downloadAllAsZip() {
-    const { default: JSZip } = await import('jszip');
-    const zip = new JSZip();
-    const successResults = results.filter(r => !r.error);
+if (downloadAllBtn) {
+    downloadAllBtn.addEventListener('click', async () => {
+        const { default: JSZip } = await import('jszip');
+        const zip = new JSZip();
+        const downloadable = results.filter(r => r.blob && !r.error);
 
-    for (const r of successResults) {
-        zip.file(r.processedName, r.blob);
-    }
-
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(zipBlob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'processed_pdfs.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-
-    // Mark all as downloaded
-    successResults.forEach(r => { r.downloaded = true; });
-}
-
-// --- Process More (Mini Drop Zone) ---
-function handleProcessMore(files) {
-    const validFiles = [];
-    for (const file of files) {
-        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-            validFiles.push(file);
+        for (const r of downloadable) {
+            zip.file(r.processedName, r.blob);
         }
-    }
-    if (validFiles.length === 0) {
-        alert('Only PDF files are supported.');
-        return;
-    }
 
-    const undownloaded = results.filter(r => !r.error && !r.downloaded);
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
 
-    if (undownloaded.length === 0) {
-        // All downloaded — silently transition
-        transitionToNewBatch(validFiles);
-    } else {
-        // Show confirmation
-        showUndownloadedConfirmation(undownloaded.length, validFiles);
-    }
-}
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'processed_pdfs.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
 
-function showUndownloadedConfirmation(count, pendingFiles) {
-    undownloadedConfirm.classList.remove('hidden');
-    undownloadedConfirm.innerHTML = `
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <i class="bi bi-exclamation-triangle text-warning"></i>
-            <span class="confirm-text">${count} file${count !== 1 ? 's' : ''} not yet downloaded.</span>
-        </div>
-        <div class="confirm-actions">
-            <button class="btn btn-sm btn-outline-primary" id="confirm-download-all">
-                <i class="bi bi-download me-1"></i>Download All
-            </button>
-            <button class="btn btn-sm btn-outline-secondary" id="confirm-discard">
-                Discard & Continue
-            </button>
-        </div>
-    `;
-
-    document.getElementById('confirm-download-all').addEventListener('click', async () => {
-        await downloadAllAsZip();
-        transitionToNewBatch(pendingFiles);
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
     });
-
-    document.getElementById('confirm-discard').addEventListener('click', () => {
-        transitionToNewBatch(pendingFiles);
-    });
-}
-
-function transitionToNewBatch(validFiles) {
-    cleanupResults();
-    selectedFiles.clear();
-    for (const file of validFiles) {
-        selectedFiles.set(file.name, file);
-    }
-    setState(STATE.SELECT);
-    renderFileList();
-}
-
-function cleanupResults() {
-    for (const r of results) {
-        if (r.url) URL.revokeObjectURL(r.url);
-    }
-    results = [];
 }
 
 // Register Service Worker for PWA

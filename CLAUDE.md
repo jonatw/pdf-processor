@@ -78,35 +78,32 @@ vite.config.js     # Vite build configuration
    - "Network First" for Python logic; "Cache First" for heavy assets (WASM, wheels)
    - Uses `CACHE_NAME` to manage updates
 
-### UI State Machine (`main.js`)
+### UI Architecture (`main.js`)
 
-The upload card uses a **Linear In-Place Flow** — a single card transitions through 3 states:
+Two persistent sections: **upload card** (top) and **results area** (below).
 
 ```
-State 1 (SELECT)          State 2 (PROCESSING)       State 3 (DONE)
-┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
-│ Drop Zone        │      │ Processing 1/3   │      │ ✅ Results       │
-│ File List        │ ──→  │ filename.pdf     │ ──→  │ Download buttons │
-│ [Process Button] │      │ ████░░░ 60%      │      │ [Mini Drop Zone] │
-└──────────────────┘      └──────────────────┘      └──────────────────┘
-                                                           │
-                                                     drag files into
-                                                     mini drop zone
-                                                           │
-                                                    ┌──────┴──────┐
-                                                    │ all files   │ no
-                                                    │ downloaded? │───→ confirmation
-                                                    └──────┬──────┘     dialog
-                                                       yes │
-                                                           ↓
-                                                    back to State 1
+Upload Card (always visible after init)
+┌──────────────────────────┐
+│ Drop Zone (drag/click)   │  ← always visible, supports multiple files
+│ File List (add/remove)   │  ← clears when processing starts
+│ [Remove Watermark]       │  ← disabled during processing
+└──────────────────────────┘
+
+Results Area (grows downward)
+┌──────────────────────────┐
+│ 📄 file1.pdf  ⏳ spinner │  ← processing
+│ 📄 file2.pdf  1.2MB [⬇] │  ← done, downloadable
+│ 📄 file3.pdf  ❌ error   │  ← failed
+│ [Download All (.zip)]    │  ← only when ≥2 downloadable files
+└──────────────────────────┘
 ```
 
 **Key design decisions:**
 - `selectedFiles` is a `Map<filename, File>` — deduplicates by name, supports add/remove
 - Processing is **sequential** (Pyodide is single-threaded, WASM memory-constrained)
-- `activeFileQueue` snapshots the queue at processing start — user's `selectedFiles` is cleared
-- Each result has an internal `downloaded` flag (no visual indicator) — gates confirmation when starting new batch
+- `processingQueue` snapshots the files at processing start — upload box clears and is immediately ready for new files
+- Results accumulate in the results area — each file shows spinner while processing, then download button or error
 - JSZip is dynamically imported only when "Download All (.zip)" is clicked (code-split by Vite)
 - Global `dragover`/`drop` listeners on `document` prevent browser from opening dropped PDFs
 
@@ -204,10 +201,10 @@ git clone --recursive ...               # Clone with submodule
 
 ### When modifying UI (`main.js`, `style.scss`, `index.html`)
 - Test with both light and dark themes
-- Verify drag-and-drop file upload works (both main drop zone and mini drop zone)
+- Verify drag-and-drop file upload works
 - Test multi-file flow: select multiple → process → download individually and via ZIP
 - Check mobile responsiveness
-- The upload card has 3 state containers (`#state-select`, `#state-processing`, `#state-done`) — only one is visible at a time, managed by `setState()`
+- Upload card and results section are always visible (no state machine) — results accumulate below the upload card
 
 ### When modifying the Pyodide bridge (`public/worker.js`)
 - **Never defer Pyodide init to user action** — PWA offline mode requires all assets fetched on first visit
