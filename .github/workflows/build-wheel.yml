@@ -43,7 +43,7 @@ jobs:
           echo "=== Building PyMuPDF WASM wheel ==="
           echo "Pyodide version: ${{ env.PYODIDE_VER }}"
 
-          pip install cibuildwheel
+          pip install "cibuildwheel==4.0.0"
 
           # Clone PyMuPDF source
           PYMUPDF_VER="${{ inputs.pymupdf_version }}"
