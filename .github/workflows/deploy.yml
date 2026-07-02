@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive  # CRITICAL: Fetch the python_core submodule
           fetch-depth: 0         # Fetch all history for proper submodule updates
