@@ -1,0 +1,21 @@
+# PR gate: the site must build. (WASM functional tests will join as a second job
+# once the pyodide test harness lands — see the tracking issue.)
+name: test
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
