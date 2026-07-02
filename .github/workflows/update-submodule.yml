@@ -13,6 +13,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  actions: write  # dispatch build-wheel on PyMuPDF pin/wheel drift
 
 concurrency:
   group: 'pages'
@@ -59,6 +60,24 @@ jobs:
           git add public/python_core
           git commit -m "chore(submodule): daily update of python core logic"
           git push origin main
+
+      # 4b. Wheel drift healing: if the core's PyMuPDF pin moved past the committed
+      # wheel (e.g. a dependabot bump auto-merged in the core repo), rebuild the
+      # WASM wheel automatically. build-wheel's smoke test is the gate; a red run
+      # surfaces through the usual workflow-failure alerting.
+      - name: Detect PyMuPDF wheel drift → trigger rebuild
+        if: steps.check_changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PIN=$(grep -oE 'PyMuPDF==[0-9.]+' public/python_core/requirements.txt | cut -d= -f3 || true)
+          WHEEL=$(python3 -c "import json; print(json.load(open('pyodide-versions.json'))['pymupdf'])" 2>/dev/null || true)
+          if [ -n "$PIN" ] && [ -n "$WHEEL" ] && [ "$PIN" != "$WHEEL" ]; then
+            echo "PyMuPDF drift: wheel=$WHEEL vs core pin=$PIN → dispatching build-wheel"
+            gh workflow run build-wheel.yml -R "$GITHUB_REPOSITORY" -f pymupdf_version="$PIN"
+          else
+            echo "No drift (wheel=$WHEEL, core pin=$PIN)"
+          fi
 
       # 5. Setup Node (Always run build/deploy to ensure latest state, or strictly if changed)
       # We proceed to build/deploy EITHER if there were changes OR if it was a manual trigger.
