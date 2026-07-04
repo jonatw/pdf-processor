@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-remover-v5'; // Incremented version to force update
+const CACHE_NAME = 'pdf-remover-v6'; // Incremented version to force update
 const CORE_ASSETS = [
   './',
   'index.html',
