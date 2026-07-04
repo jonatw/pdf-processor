@@ -1,7 +1,5 @@
-# Group updates so dependabot opens 1-2 batched PRs/week instead of one per dep
-# (avoids the pile-up + serial rebase churn). Grouped PRs still run full CI, incl.
-# the wasm-test job — so a WASM-breaking bump is caught even though dependabot can't
-# see the WASM constraint itself.
+# Group minor+patch → 1 batched PR/week (auto-mergeable). Major bumps stay individual
+# so a breaking major doesn't block the safe batch (Gemini code-review 建議).
 version: 2
 updates:
   - package-ecosystem: npm
@@ -9,12 +7,12 @@ updates:
     schedule:
       interval: weekly
     groups:
-      npm:
-        patterns: ["*"]
+      minor-patch:
+        update-types: ["minor", "patch"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     groups:
-      github-actions:
-        patterns: ["*"]
+      minor-patch:
+        update-types: ["minor", "patch"]
