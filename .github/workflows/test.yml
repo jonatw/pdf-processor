@@ -1,5 +1,4 @@
-# PR gate: the site must build. (WASM functional tests will join as a second job
-# once the pyodide test harness lands — see the tracking issue.)
+# PR gate: the site must build AND the WASM path must work.
 name: test
 on:
   pull_request:
@@ -19,3 +18,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  wasm-test:
+    # Runs the python_core suite + e2e watermark removal inside Pyodide against the
+    # committed wheel (public/wheels/). Catches PRs — including dependabot dep bumps —
+    # that break the WASM path, which dependabot itself can't see. No emscripten build
+    # here; it exercises the committed wheel, so it does not depend on the wheel-rebuild
+    # toolchain (that's the build-wheel workflow + issue #7).
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:wasm
