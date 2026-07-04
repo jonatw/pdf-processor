@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-remover-v4'; // Incremented version to force update
+const CACHE_NAME = 'pdf-remover-v5'; // Incremented version to force update
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -6,7 +6,7 @@ const CORE_ASSETS = [
 ];
 
 const STATIC_ASSETS = [
-  'wheels/pymupdf-1.27.1-cp313-none-pyodide_2025_0_wasm32.whl'
+  'wheels/pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl'
 ];
 
 // Files that should always try to fetch from network first (to get latest logic)
