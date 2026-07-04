@@ -1,5 +1,6 @@
 {
-  "pyodide": "0.29.3",
+  "pyodide": "314.0.2",
   "pymupdf": "1.27.1",
-  "wheel": "pymupdf-1.27.1-cp313-none-pyodide_2025_0_wasm32.whl"
+  "wheel": "pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl",
+  "built": "2026-07-04T11:56:11Z"
 }

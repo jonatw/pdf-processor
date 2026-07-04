@@ -11,11 +11,10 @@
  * never hardcoded here.
  *
  * Known WASM limitation (Phase 1):
- *   asyncio.run() requires WebAssembly stack switching (Asyncify/JSPI), which
- *   is not available in the Node.js 22 runtime. Tests that call asyncio.run()
- *   directly are patched to raise unittest.SkipTest with this reason, rather
- *   than erroring. See Phase 1 summary for the skip count and which tests are
- *   affected. The e2e Phase 2 avoids this limitation by using
+ *   asyncio.run() requires WebAssembly stack switching (Asyncify/JSPI). Tests
+ *   that call asyncio.run() directly are patched to raise unittest.SkipTest
+ *   rather than erroring; see Phase 1 summary for the skip count and affected
+ *   tests. The e2e Phase 2 avoids this limitation by using
  *   pyodide.runPythonAsync(), which is the correct approach for async Python
  *   in WASM.
  */
@@ -58,6 +57,26 @@ const { loadPyodide } = await import('pyodide');
 const pyodide = await loadPyodide({ packages: [] });
 console.log('[setup] Pyodide loaded.');
 
+// ── Runtime ↔ wheel version consistency check ─────────────────────────────
+// pyodide-versions.json records the pyodide version the committed wheel was
+// built for. If the npm package version differs, micropip will reject the
+// wheel with a cryptic platform-tag error. Catch it here with a clear message.
+// This happens whenever the pyodide npm dependency is bumped (e.g. dependabot
+// PR) before the wheel has been rebuilt for the new version.
+const runtimeVersion = pyodide.version;
+if (runtimeVersion !== pyodideVersion) {
+  console.error(
+    `STOP: Pyodide version mismatch.\n` +
+    `  npm package (runtime): ${runtimeVersion}\n` +
+    `  pyodide-versions.json: ${pyodideVersion}  (wheel built for this version)\n\n` +
+    `The committed wheel is incompatible with the installed Pyodide. ` +
+    `Trigger the "Build PyMuPDF WASM Wheel" GitHub Actions workflow with ` +
+    `pyodide_version=${runtimeVersion} to rebuild the wheel, ` +
+    `then update this branch.`
+  );
+  process.exit(4);
+}
+
 // ── Install PyMuPDF wheel via micropip ────────────────────────────────────
 
 console.log('[setup] Installing micropip + PyMuPDF wheel (network fetch on first run)...');
@@ -99,13 +118,16 @@ let exitCode = 0;
 //
 // WASM limitation — asyncio.run() patch:
 //   asyncio.run() calls webloop.run_sync(), which requires WebAssembly stack
-//   switching (Asyncify/JSPI). This is not supported in the Node.js 22 runtime
-//   shipped with Pyodide 0.29.x. Tests that call asyncio.run() directly will
-//   hit "RuntimeError: WebAssembly stack switching not supported in this
-//   JavaScript runtime". To convert these from errors (misleading) to skips
-//   (accurate), we patch asyncio.run() to raise unittest.SkipTest before
-//   running the suite. The patch is applied inside Pyodide's Python runtime
-//   and is isolated to the WASM test environment.
+//   switching (Asyncify/JSPI). Availability depends on the Pyodide/emscripten
+//   version and the Node.js runtime:
+//     - Pyodide 0.29.x (emscripten 3.1.58, Node 22): not supported.
+//     - Pyodide 314.x  (emscripten 5.0.3, Node 24): JSPI status not confirmed;
+//       patch is kept as a conservative fallback (skips → no false errors).
+//   Tests that call asyncio.run() directly would otherwise hit:
+//     "RuntimeError: WebAssembly stack switching not supported in this runtime"
+//   The patch replaces asyncio.run() with a SkipTest-raising stub, turning
+//   those from errors (misleading) into skips (accurate). Applied only inside
+//   Pyodide's Python runtime; isolated to the WASM test environment.
 //
 //   Affected tests (as of python_core @ current HEAD):
 //     - test_nonexistent_file         (expects InvalidPDFError from coroutine)

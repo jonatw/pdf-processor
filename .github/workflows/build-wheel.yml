@@ -176,10 +176,12 @@ jobs:
           }
           VJSON
 
-          # Update workflow defaults to last successful versions
-          sed -i "s|default: '[0-9][0-9.]*'  # pyodide-version-pin|default: '${{ env.PYODIDE_VER }}'  # pyodide-version-pin|g" .github/workflows/build-wheel.yml
-          sed -i "s|default: '[0-9]*\.[0-9]*\.[0-9]*'  # pymupdf-version-pin|default: '$PYMUPDF_VER'  # pymupdf-version-pin|" .github/workflows/build-wheel.yml
-
+          # NOTE: the workflow no longer self-updates its own version-pin defaults.
+          # The GITHUB_TOKEN lacks the `workflows` permission (matching the PAT guardrail),
+          # so a commit that touches .github/workflows/*.yml is rejected on push
+          # ("refusing to allow a GitHub App to create or update workflow ... without
+          # workflows permission"). Pins stay at their defaults; dispatch always passes
+          # the version explicitly anyway. Durable fix tracked in the in-container issue.
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add public/wheels/ pyodide-versions.json
@@ -213,11 +215,10 @@ jobs:
             fi
           fi
 
-          # Check if anything changed
-          if git diff --cached --quiet && git diff --quiet .github/workflows/build-wheel.yml; then
+          # Check if anything changed (only non-workflow files are staged now)
+          if git diff --cached --quiet; then
             echo "Wheel unchanged, skipping commit."
           else
-            git add .github/workflows/build-wheel.yml
             git commit -m "ci: rebuild PyMuPDF WASM wheel ($WHEEL_NAME)
 
           Pyodide: ${{ env.PYODIDE_VER }}
