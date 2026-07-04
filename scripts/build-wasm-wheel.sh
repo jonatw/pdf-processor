@@ -45,7 +45,7 @@ if [ ! -x "$CIBW_VENV/bin/cibuildwheel" ]; then
     "$CIBW_VENV/bin/pip" install --quiet "cibuildwheel==4.1.0"
 fi
 CIBUILDWHEEL="$CIBW_VENV/bin/cibuildwheel"
-echo "cibuildwheel: $($CIBUILDWHEEL --version)"
+echo "cibuildwheel: $("$CIBW_VENV/bin/pip" show cibuildwheel 2>/dev/null | grep ^Version | cut -d' ' -f2)"
 
 # ── Step 2: Clone PyMuPDF ────────────────────────────────────────────────
 echo "=== [2/12] Cloning PyMuPDF ============================================"
@@ -177,7 +177,7 @@ cd "$REPO_ROOT"
 CURRENT_PKG_PYODIDE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).devDependencies?.pyodide || '')" 2>/dev/null || true)
 if [ "$CURRENT_PKG_PYODIDE" != "$PYODIDE_VER" ]; then
     echo "  pyodide: ${CURRENT_PKG_PYODIDE} → ${PYODIDE_VER}"
-    npm install --save-dev "pyodide@${PYODIDE_VER}" --cache /tmp/npm-cache 2>&1 | tail -5
+    npm install --save-dev --save-exact "pyodide@${PYODIDE_VER}" --cache /tmp/npm-cache 2>&1 | tail -5
 else
     echo "  npm pyodide already at ${PYODIDE_VER}"
 fi
