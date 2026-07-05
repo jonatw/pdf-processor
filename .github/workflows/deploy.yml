@@ -6,6 +6,11 @@ on:
   push:
     branches: ['main']
 
+  # Daily deploy — pulls the latest python_core submodule at deploy time.
+  # Replaces the retired update-submodule.yml (which auto-committed the bump to main → blocked by branch protection).
+  schedule:
+    - cron: '0 0 * * *'
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -32,6 +37,10 @@ jobs:
         with:
           submodules: recursive  # CRITICAL: Fetch the python_core submodule
           fetch-depth: 0         # Fetch all history for proper submodule updates
+
+      - name: Update python_core submodule to latest
+        # Deploy always ships the newest pdf-watermark-remove logic (no commit to main needed).
+        run: git submodule update --remote --merge
 
       - name: Set up Node
         uses: actions/setup-node@v6
