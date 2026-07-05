@@ -192,7 +192,7 @@ if git -C "$REPO_ROOT" ls-remote --exit-code origin "refs/heads/${BRANCH}" &>/de
     echo "Branch ${BRANCH} already exists on remote; checking out and resetting"
     git -C "$REPO_ROOT" checkout -B "$BRANCH" "origin/main"
 else
-    git -C "$REPO_ROOT" checkout -b "$BRANCH"
+    git -C "$REPO_ROOT" checkout -b "$BRANCH" "origin/main"
 fi
 
 git -C "$REPO_ROOT" add \
