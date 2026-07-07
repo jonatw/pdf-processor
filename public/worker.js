@@ -1,6 +1,7 @@
 // Web Worker that handles Python/Pyodide operations off the UI thread.
+// ES module worker — Pyodide served same-origin from public/pyodide/ (no cross-origin CORS).
+import { loadPyodide } from './pyodide/pyodide.mjs';
 
-const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v314.0.2/full/';
 const PYTHON_CORE_PATH = 'python_core';
 const PYMUPDF_WHEEL_PATH = 'wheels/pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl';
 
@@ -27,10 +28,9 @@ const INIT_TOTAL_STEPS = 3;
 
 async function initializePyodideAndPackages() {
     try {
-        // Step 1/3: Load Pyodide core runtime
+        // Step 1/3: Load Pyodide core runtime (same-origin, no CDN)
         self.postMessage({ status: 'init', step: 1, totalSteps: INIT_TOTAL_STEPS, message: 'Loading Python runtime...' });
-        importScripts(`${PYODIDE_CDN}pyodide.js`);
-        pyodide = await loadPyodide({ indexURL: PYODIDE_CDN });
+        pyodide = await loadPyodide({ indexURL: new URL('./pyodide/', import.meta.url).href });
 
         // Step 2/3: Install PyMuPDF wheel via micropip
         self.postMessage({ status: 'init', step: 2, totalSteps: INIT_TOTAL_STEPS, message: 'Loading PDF library...' });
