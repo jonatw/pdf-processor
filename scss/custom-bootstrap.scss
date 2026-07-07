@@ -1,4 +1,5 @@
 // Only import the Bootstrap modules we actually use (tree-shaken)
+@use "sass:map";  // modern builtin module (map-merge global builtin is deprecated)
 
 // Required core
 @import "bootstrap/scss/functions";
@@ -35,7 +36,7 @@
 @import "bootstrap/scss/utilities";
 
 // Trim unused utilities before generating
-$utilities: map-merge(
+$utilities: map.merge(
   $utilities,
   (
     // Remove utilities we don't use

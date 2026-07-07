@@ -1,6 +1,6 @@
 // Tree-shaken Bootstrap + app styles
-@import './scss/custom-bootstrap';
-@import './scss/icons'; // Only the 14 Bootstrap Icons we actually use
+@use './scss/custom-bootstrap';
+@use './scss/icons'; // Only the 14 Bootstrap Icons we actually use
 
 :root {
   --transition-speed: 0.3s;

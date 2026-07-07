@@ -11,6 +11,13 @@ export default defineConfig({
   define: {
     __GIT_HASH__: JSON.stringify(gitHash),
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler', // legacy JS API is removed in Dart Sass 2.0 (sass-lang.com/d/legacy-js-api)
+      },
+    },
+  },
   build: {
     minify: 'esbuild', // Use esbuild for minification (default)
     esbuild: {
