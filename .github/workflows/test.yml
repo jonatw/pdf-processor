@@ -37,3 +37,29 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:wasm
+
+  e2e:
+    # Browser-level UAT: Playwright (Chromium + WebKit) against vite preview.
+    # Catches missing self-hosted wheels, SPA-fallback HTML, cross-origin WASM errors (#32/#33 class).
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run build
+      - run: npm run test:e2e
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
