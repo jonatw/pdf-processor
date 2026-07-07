@@ -18,7 +18,7 @@ const WHEEL_PATHS = [
 
 // Core Pyodide assets that must be served with correct MIME types
 const PYODIDE_ASSETS = [
-  { path: 'pyodide/pyodide.mjs',        type: 'application/javascript' },
+  { path: 'pyodide/pyodide.mjs',        type: 'javascript' }  // matches text/javascript (canonical) and application/javascript,
   { path: 'pyodide/pyodide.asm.wasm',   type: 'application/wasm' },
   { path: 'pyodide/pyodide-lock.json',  type: 'application/json' },
 ];
@@ -35,12 +35,15 @@ async function waitForReady(page) {
 
 test.describe('PDF Processor UAT', () => {
 
-  test('no cross-origin requests during initialization', async ({ page }) => {
+  test('no cross-origin requests during initialization', async ({ page, baseURL }) => {
+    // page.url() during the initial navigation is still about:blank (origin 'null'),
+    // so compare against the configured baseURL, and only flag real http(s) requests
+    // (data:/blob: URLs parse with origin 'null' and would false-positive).
+    const expectedOrigin = new URL(baseURL).origin;
     const crossOriginRequests = [];
     page.on('request', req => {
       const url = new URL(req.url());
-      const baseUrl = new URL(page.url() || 'http://localhost:4173');
-      if (url.origin !== baseUrl.origin) {
+      if ((url.protocol === 'http:' || url.protocol === 'https:') && url.origin !== expectedOrigin) {
         crossOriginRequests.push(req.url());
       }
     });
