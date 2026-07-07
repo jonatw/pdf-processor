@@ -20,7 +20,7 @@
     <!-- Preload heavy Pyodide WASM assets — browser starts downloading before Worker needs them -->
     <link rel="preload" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.asm.wasm" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide-lock.json" as="fetch" crossorigin="anonymous">
-    <link rel="preload" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.asm.js" as="script" crossorigin="anonymous">
+    <link rel="modulepreload" href="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.asm.mjs" crossorigin="anonymous">
     <!-- Removed blocking <script src="pyodide.js"> — Worker loads Pyodide independently via importScripts -->
   </head>
   <body>
