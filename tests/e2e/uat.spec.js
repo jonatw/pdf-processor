@@ -12,15 +12,15 @@ const MINIMAL_PDF = readFileSync(resolve(__dirname, 'fixtures/minimal.pdf'));
 
 // Wheel paths that must NOT return text/html (Cloudflare SPA-fallback footgun)
 const WHEEL_PATHS = [
-  '/pyodide/micropip-0.11.1-py3-none-any.whl',
-  '/wheels/pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl',
+  'pyodide/micropip-0.11.1-py3-none-any.whl',
+  'wheels/pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl',
 ];
 
 // Core Pyodide assets that must be served with correct MIME types
 const PYODIDE_ASSETS = [
-  { path: '/pyodide/pyodide.mjs',        type: 'application/javascript' },
-  { path: '/pyodide/pyodide.asm.wasm',   type: 'application/wasm' },
-  { path: '/pyodide/pyodide-lock.json',  type: 'application/json' },
+  { path: 'pyodide/pyodide.mjs',        type: 'application/javascript' },
+  { path: 'pyodide/pyodide.asm.wasm',   type: 'application/wasm' },
+  { path: 'pyodide/pyodide-lock.json',  type: 'application/json' },
 ];
 
 // #status-log fades out via CSS animation after "Ready!" is logged.
@@ -45,7 +45,7 @@ test.describe('PDF Processor UAT', () => {
       }
     });
 
-    await page.goto('/');
+    await page.goto('./');
     await waitForReady(page);
 
     expect(crossOriginRequests).toEqual([]);
@@ -70,13 +70,13 @@ test.describe('PDF Processor UAT', () => {
   });
 
   test('Pyodide reaches Ready state', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await waitForReady(page);
     await expect(page.locator('#upload-section')).not.toHaveClass(/hidden/);
   });
 
   test('PDF upload and processing completes without error', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await waitForReady(page);
 
     await page.locator('#pdf-upload').setInputFiles({

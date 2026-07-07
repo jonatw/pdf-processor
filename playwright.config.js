@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 // BASE_URL can be set to a CF preview URL for agent-driven UAT:
 //   BASE_URL=https://fix-foo.pdf-processor-41c.pages.dev npx playwright test
 // Defaults to the vite preview server for CI.
-const baseURL = process.env.BASE_URL || 'http://localhost:4173';
+const baseURL = process.env.BASE_URL || 'http://localhost:4173/pdf-processor/';
 
 export default defineConfig({
   testDir: './tests/e2e',
