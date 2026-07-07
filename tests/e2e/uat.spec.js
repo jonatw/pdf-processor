@@ -23,27 +23,35 @@ const PYODIDE_ASSETS = [
   { path: '/pyodide/pyodide-lock.json',  type: 'application/json' },
 ];
 
+// #status-log fades out via CSS animation after "Ready!" is logged.
+// waitForFunction checks DOM text without requiring visibility, avoiding a
+// flaky race where toContainText() polls after the element is already hidden.
+async function waitForReady(page) {
+  await page.waitForFunction(
+    () => document.getElementById('status-log')?.textContent?.includes('Ready'),
+    { timeout: 120_000 }
+  );
+}
+
 test.describe('PDF Processor UAT', () => {
 
   test('no cross-origin requests during initialization', async ({ page }) => {
     const crossOriginRequests = [];
     page.on('request', req => {
       const url = new URL(req.url());
-      const baseUrl = new URL(page.url() || 'http://localhost');
-      if (url.origin !== 'about:' && url.origin !== baseUrl.origin && !url.hostname.includes('localhost')) {
+      const baseUrl = new URL(page.url() || 'http://localhost:4173');
+      if (url.origin !== baseUrl.origin) {
         crossOriginRequests.push(req.url());
       }
     });
 
     await page.goto('/');
-    // Wait for Pyodide init (up to 120s — first load downloads ~80MB WASM)
-    await expect(page.locator('#status-log')).toContainText('Ready', { timeout: 120_000 });
+    await waitForReady(page);
 
     expect(crossOriginRequests).toEqual([]);
   });
 
-  test('wheel assets served as binary (not text/html SPA-fallback)', async ({ page, request }) => {
-    const baseURL = page.context().browser()?.newContext ? '' : '';
+  test('wheel assets served as binary (not text/html SPA-fallback)', async ({ page }) => {
     for (const path of WHEEL_PATHS) {
       const response = await page.request.get(path);
       expect(response.status(), `${path} should return 200`).toBe(200);
@@ -63,39 +71,35 @@ test.describe('PDF Processor UAT', () => {
 
   test('Pyodide reaches Ready state', async ({ page }) => {
     await page.goto('/');
-    const statusLog = page.locator('#status-log');
-    await expect(statusLog).toContainText('Ready', { timeout: 120_000 });
-    const uploadSection = page.locator('#upload-section');
-    await expect(uploadSection).not.toHaveClass(/hidden/);
+    await waitForReady(page);
+    await expect(page.locator('#upload-section')).not.toHaveClass(/hidden/);
   });
 
   test('PDF upload and processing completes without error', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('#status-log')).toContainText('Ready', { timeout: 120_000 });
+    await waitForReady(page);
 
-    // Upload the minimal test PDF via the hidden file input
     await page.locator('#pdf-upload').setInputFiles({
       name: 'test-smoke.pdf',
       mimeType: 'application/pdf',
       buffer: MINIMAL_PDF,
     });
 
-    // Process button should become enabled
     const processBtn = page.locator('#process-btn');
     await expect(processBtn).not.toBeDisabled({ timeout: 5_000 });
     await processBtn.click();
 
-    // Wait for a result entry — either success (download link) or logged error
+    // Wait for download link — confirms successful processing.
+    // .not.toBeEmpty() fires on the spinner alone (processing start), not
+    // on the final result; waiting for .download-btn is the correct gate.
     const resultsList = page.locator('#results-list');
-    await expect(resultsList).not.toBeEmpty({ timeout: 60_000 });
+    await expect(resultsList.locator('.download-btn')).toBeVisible({ timeout: 60_000 });
 
-    // No JS error overlay should be present
-    const initError = page.locator('#init-error');
-    await expect(initError).not.toBeVisible();
+    // No init error overlay
+    await expect(page.locator('#init-error')).not.toBeVisible();
 
-    // The result should NOT show an error state
-    const errorItems = resultsList.locator('.text-danger');
-    expect(await errorItems.count()).toBe(0);
+    // No per-file error item
+    await expect(resultsList.locator('.result-item.error')).toHaveCount(0);
   });
 
 });
