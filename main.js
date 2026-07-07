@@ -3,7 +3,7 @@ import './style.scss'
 import 'bootstrap/js/dist/collapse'  // Only component used (FAQ accordion)
 
 // Web Worker — created immediately, Pyodide starts loading in background
-const worker = new Worker(`${import.meta.env.BASE_URL}worker.js`);
+const worker = new Worker(`${import.meta.env.BASE_URL}worker.js`, { type: 'module' });
 let pyodideReady = false;
 
 // --- Multi-file state ---

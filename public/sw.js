@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-remover-v7';
+const CACHE_NAME = 'pdf-remover-v8';
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -6,7 +6,12 @@ const CORE_ASSETS = [
 ];
 
 const STATIC_ASSETS = [
-  'wheels/pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl'
+  'wheels/pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl',
+  'pyodide/pyodide.mjs',
+  'pyodide/pyodide.asm.mjs',
+  'pyodide/pyodide.asm.wasm',
+  'pyodide/python_stdlib.zip',
+  'pyodide/pyodide-lock.json',
 ];
 
 // Files that should always try to fetch from network first (to get latest logic)

@@ -5,6 +5,9 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "setup": "node scripts/copy-pyodide.mjs",
+    "predev": "node scripts/copy-pyodide.mjs",
+    "prebuild": "node scripts/copy-pyodide.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
