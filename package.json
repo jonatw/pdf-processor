@@ -13,6 +13,7 @@
     "postbuild": "node scripts/verify-dist.mjs",
     "preview": "vite preview",
     "test:wasm": "node tests/wasm/run.mjs",
+    "e2e": "playwright test",
     "test:e2e": "playwright test",
     "verify-preview": "node scripts/verify-preview.mjs"
   },

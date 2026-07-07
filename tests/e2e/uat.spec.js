@@ -8,17 +8,20 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Minimal 1-page PDF — valid structure, no watermarks, smoke test fixture.
-const MINIMAL_PDF = readFileSync(resolve(__dirname, 'fixtures/minimal.pdf'));
+const MINIMAL_PDF = readFileSync(resolve(__dirname, 'fixtures/sample.pdf'));
 
-// Wheel paths that must NOT return text/html (Cloudflare SPA-fallback footgun)
+// Paths relative to baseURL — no leading slash so they resolve under the vite
+// subpath (/pdf-processor/) in CI and under the CF Pages root in preview UAT.
 const WHEEL_PATHS = [
   'pyodide/micropip-0.11.1-py3-none-any.whl',
   'wheels/pymupdf-1.27.1-cp314-none-pyemscripten_2026_0_wasm32.whl',
 ];
 
-// Core Pyodide assets that must be served with correct MIME types
+// Core Pyodide assets that must be served with correct MIME types.
+// Use 'javascript' (not 'application/javascript') — vite serves .mjs as
+// 'text/javascript' (RFC 9239 standard), Playwright checks with toContain().
 const PYODIDE_ASSETS = [
-  { path: 'pyodide/pyodide.mjs',        type: 'javascript' }  // matches text/javascript (canonical) and application/javascript,
+  { path: 'pyodide/pyodide.mjs',        type: 'javascript' },
   { path: 'pyodide/pyodide.asm.wasm',   type: 'application/wasm' },
   { path: 'pyodide/pyodide-lock.json',  type: 'application/json' },
 ];
