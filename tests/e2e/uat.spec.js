@@ -3,8 +3,9 @@
 // Covers the bug class: missing self-hosted wheels silently replaced by SPA-fallback HTML.
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Minimal 1-page PDF — valid structure, no watermarks, smoke test fixture.
@@ -36,14 +37,17 @@ test.describe('PDF Processor UAT', () => {
     });
 
     await page.goto('/');
-    // Wait for Pyodide init (up to 120s — first load downloads ~80MB WASM)
-    await expect(page.locator('#status-log')).toContainText('Ready', { timeout: 120_000 });
+    // Wait for Pyodide init — use waitForFunction to avoid visibility race with
+    // the CSS fade-out that hides #init-status after Ready is logged.
+    await page.waitForFunction(
+      () => document.getElementById('status-log')?.textContent?.includes('Ready'),
+      { timeout: 120_000 }
+    );
 
     expect(crossOriginRequests).toEqual([]);
   });
 
-  test('wheel assets served as binary (not text/html SPA-fallback)', async ({ page, request }) => {
-    const baseURL = page.context().browser()?.newContext ? '' : '';
+  test('wheel assets served as binary (not text/html SPA-fallback)', async ({ page }) => {
     for (const path of WHEEL_PATHS) {
       const response = await page.request.get(path);
       expect(response.status(), `${path} should return 200`).toBe(200);
@@ -63,8 +67,13 @@ test.describe('PDF Processor UAT', () => {
 
   test('Pyodide reaches Ready state', async ({ page }) => {
     await page.goto('/');
-    const statusLog = page.locator('#status-log');
-    await expect(statusLog).toContainText('Ready', { timeout: 120_000 });
+    // waitForFunction avoids visibility race — #status-log fades out via CSS
+    // animation after Ready is logged; toContainText would timeout if animation
+    // completes before Playwright asserts.
+    await page.waitForFunction(
+      () => document.getElementById('status-log')?.textContent?.includes('Ready'),
+      { timeout: 120_000 }
+    );
     const uploadSection = page.locator('#upload-section');
     await expect(uploadSection).not.toHaveClass(/hidden/);
   });
@@ -85,17 +94,16 @@ test.describe('PDF Processor UAT', () => {
     await expect(processBtn).not.toBeDisabled({ timeout: 5_000 });
     await processBtn.click();
 
-    // Wait for a result entry — either success (download link) or logged error
+    // Wait for the download link — confirms processing completed successfully
+    // (.not.toBeEmpty would fire on the spinner alone, before the final state)
     const resultsList = page.locator('#results-list');
-    await expect(resultsList).not.toBeEmpty({ timeout: 60_000 });
+    await expect(resultsList.locator('.download-btn')).toBeVisible({ timeout: 60_000 });
 
-    // No JS error overlay should be present
-    const initError = page.locator('#init-error');
-    await expect(initError).not.toBeVisible();
+    // No init error overlay
+    await expect(page.locator('#init-error')).not.toBeVisible();
 
-    // The result should NOT show an error state
-    const errorItems = resultsList.locator('.text-danger');
-    expect(await errorItems.count()).toBe(0);
+    // No per-file error item (class added by updateResultItem on error path)
+    await expect(resultsList.locator('.result-item.error')).toHaveCount(0);
   });
 
 });

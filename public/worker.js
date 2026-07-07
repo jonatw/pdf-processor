@@ -35,8 +35,11 @@ async function initializePyodideAndPackages() {
         // Step 2/3: Install PyMuPDF wheel via micropip
         self.postMessage({ status: 'init', step: 2, totalSteps: INIT_TOTAL_STEPS, message: 'Loading PDF library...' });
         await pyodide.loadPackage('micropip');
-        const micropip = pyodide.pyimport('micropip');
-        await micropip.install(PYMUPDF_WHEEL_PATH);
+        // deps=False: PyMuPDF wheel METADATA incorrectly declares pytest as Requires-Dist
+        // (packaging bug — it's a test dep, not a runtime dep). PyMuPDF is self-contained;
+        // skipping dep resolution avoids SRI failures for 11+ pytest ecosystem packages.
+        pyodide.globals.set('_pymupdf_wheel_path', PYMUPDF_WHEEL_PATH);
+        await pyodide.runPythonAsync('import micropip; await micropip.install(_pymupdf_wheel_path, deps=False)');
 
         // Step 3/3: Load all Python core files in parallel
         self.postMessage({ status: 'init', step: 3, totalSteps: INIT_TOTAL_STEPS, message: 'Loading processing tools...' });
