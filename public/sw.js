@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-remover-v8';
+const CACHE_NAME = 'pdf-remover-v9';
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   'pyodide/pyodide.asm.wasm',
   'pyodide/python_stdlib.zip',
   'pyodide/pyodide-lock.json',
+  'pyodide/micropip-0.11.1-py3-none-any.whl',
 ];
 
 // Files that should always try to fetch from network first (to get latest logic)

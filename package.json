@@ -10,6 +10,7 @@
     "prebuild": "node scripts/copy-pyodide.mjs",
     "dev": "vite",
     "build": "vite build",
+    "postbuild": "node scripts/verify-dist.mjs",
     "preview": "vite preview",
     "test:wasm": "node tests/wasm/run.mjs"
   },
