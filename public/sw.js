@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-remover-v6'; // Incremented version to force update
+const CACHE_NAME = 'pdf-remover-v7';
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -56,7 +56,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  
+
+  // Cross-origin requests (e.g. Pyodide CDN) must not be intercepted: caching
+  // an opaque response and serving it back breaks WebAssembly.instantiateStreaming
+  // with "CORS-cross-origin" on Safari/WebKit.
+  if (url.origin !== self.location.origin) return;
+
   // Strategy 1: Network First (for logic files)
   // This ensures users get the latest python scripts and main.js if they are online.
   // We use .includes() to be safe with subdirectory deployments (e.g. /pdf-processor/main.js)
@@ -97,7 +102,7 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         }
 
-        // Cache Pyodide CDN and local static assets dynamically
+        // Cache same-origin static assets dynamically
         if (url.protocol.startsWith('http')) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
