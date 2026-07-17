@@ -14,7 +14,7 @@
 #   3. Copy wheel → public/wheels/
 #   4. Update pyodide-versions.json, worker.js, sw.js, index.html, package.json
 #   5. npm install pyodide@<ver> to keep devDep + package-lock.json in sync
-#   6. Commit to PR branch, push, open PR (Closes #23)
+#   6. Commit to PR branch, push, open PR
 #
 # Requirements: git, gh (authenticated), pip, node/npm
 # Note: cibuildwheel --platform pyodide runs natively (no Docker needed).
