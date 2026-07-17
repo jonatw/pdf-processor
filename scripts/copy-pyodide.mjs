@@ -18,9 +18,11 @@ const CORE_FILES = [
   'pyodide-lock.json',
 ];
 
-// Packages that worker.js calls loadPackage() on — must be self-hosted under public/pyodide/
-// Derive filenames from pyodide-lock.json so version bumps are picked up automatically.
-const LOADPACKAGE_PACKAGES = ['micropip'];
+// Root packages that worker.js calls loadPackage() on.
+// resolveClosure() expands these to their full transitive dependency set so every
+// required wheel is self-hosted — preventing silent 404s when pyodide switches to a
+// local index (no PyPI fallback) in offline / CI environments.
+const ROOT_PACKAGES = ['micropip'];
 
 const pyodidePkg = JSON.parse(readFileSync(resolve(src, 'package.json'), 'utf8'));
 const pyodideVersion = pyodidePkg.version; // e.g. "314.0.2"
@@ -30,6 +32,25 @@ const lockData = JSON.parse(readFileSync(resolve(src, 'pyodide-lock.json'), 'utf
 
 function sha256hex(buf) {
   return createHash('sha256').update(buf).digest('hex');
+}
+
+function resolveClosure(roots, packages) {
+  const norm = n => n.toLowerCase().replace(/_/g, '-');
+  const byName = {};
+  for (const [k, v] of Object.entries(packages)) {
+    byName[norm(k)] = v;
+    if (v.name) byName[norm(v.name)] = v;
+  }
+  const seen = new Map();
+  const stack = [...roots];
+  while (stack.length) {
+    const entry = byName[norm(stack.pop())];
+    if (!entry) throw new Error(`Package not in pyodide-lock.json — check ROOT_PACKAGES`);
+    if (seen.has(entry.file_name)) continue;
+    seen.set(entry.file_name, entry);
+    for (const dep of (entry.depends || [])) stack.push(dep);
+  }
+  return [...seen.values()];
 }
 
 mkdirSync(dest, { recursive: true });
@@ -42,9 +63,12 @@ console.log(`Pyodide core assets copied (${CORE_FILES.length} files).`);
 
 // Step 2: Ensure package wheels that loadPackage() needs are present and intact.
 // node_modules/pyodide does not ship these; fetch from the pinned CDN once and verify sha256.
-for (const pkg of LOADPACKAGE_PACKAGES) {
-  const entry = lockData.packages[pkg];
-  if (!entry) throw new Error(`Package '${pkg}' not found in pyodide-lock.json — check LOADPACKAGE_PACKAGES`);
+// resolveClosure() expands ROOT_PACKAGES transitively so adding a dep to ROOT_PACKAGES
+// automatically pulls in its full closure without any manual list maintenance.
+const PACKAGES_TO_SELFHOST = resolveClosure(ROOT_PACKAGES, lockData.packages);
+console.log(`Resolved ${PACKAGES_TO_SELFHOST.length} package(s) to self-host (roots: ${ROOT_PACKAGES.join(', ')}).`);
+
+for (const entry of PACKAGES_TO_SELFHOST) {
   const { file_name, sha256: expectedSha } = entry;
   const destPath = resolve(dest, file_name);
 
