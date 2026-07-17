@@ -220,8 +220,6 @@ build: rebuild PyMuPDF WASM wheel for Pyodide ${PYODIDE_VER}
 
 Built in-container via scripts/build-wasm-wheel.sh. No .github/ changes;
 mutable state lives in pyodide-versions.json.
-
-Closes #23
 COMMITMSG
 )"
 
@@ -235,7 +233,7 @@ PR_URL=$(gh pr create \
 
 Rebuilds the PyMuPDF WASM wheel for **Pyodide ${PYODIDE_VER}** (PyMuPDF ${PYMUPDF_VER}, ABI \`${PY_TAG}\`) and lands it via PR — no \`.github/\` changes, no direct push to main.
 
-Built in-container by \`scripts/build-wasm-wheel.sh ${PYODIDE_VER} ${PYMUPDF_VER}\`. This is the durable fix described in #23: all mutable state (version pins) lives in \`pyodide-versions.json\`; the script reads it, not the workflow file.
+Built in-container by \`scripts/build-wasm-wheel.sh ${PYODIDE_VER} ${PYMUPDF_VER}\`. All mutable state (version pins) lives in \`pyodide-versions.json\`; the script reads it, not the workflow file.
 
 ## Files changed
 
@@ -255,7 +253,6 @@ Built in-container by \`scripts/build-wasm-wheel.sh ${PYODIDE_VER} ${PYMUPDF_VER
 - [ ] \`build\` green (Vite build succeeds)
 - [ ] No \`.github/workflows/\` changes in diff
 
-Closes #23
 PRBODY
 )" \
     --head "$BRANCH" \
