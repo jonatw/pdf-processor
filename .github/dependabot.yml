@@ -9,6 +9,13 @@ updates:
     groups:
       minor-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # pyodide version is managed by scripts/build-wasm-wheel.sh (atomically
+      # updates worker.js CDN URL, index.html preloads, pyodide-versions.json,
+      # and the committed wheel). A standalone npm bump would create a
+      # test-runtime / production mismatch that the wasm-test CI blocks — but
+      # suppressing the PR avoids unnecessary noise.
+      - dependency-name: "pyodide"
   - package-ecosystem: github-actions
     directory: /
     schedule:
