@@ -1,0 +1,35 @@
+name: Close Stale PRs
+
+# GC 過期 PR：警告 → 寬限 → 關。零 LLM / 零 key，cdklabs 官方維護。
+# 落地自 issue #53（老鷹提設定，改 .github/workflows 需 workflows:write → main-Claude 落地）。
+on:
+  schedule:
+    - cron: '0 3 * * 1'      # 每週一 03:00 UTC（非每日，降噪）
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '乾跑（只印不關，手動觀察用）— 預設 true'
+        type: boolean
+        default: true
+
+permissions:
+  pull-requests: write        # 留言警告 + 關 PR
+
+concurrency:
+  group: close-stale-prs
+  cancel-in-progress: false
+
+jobs:
+  close-stale-prs:
+    runs-on: ubuntu-latest
+    steps:
+      # pin 到 v0.0.8 的 commit SHA（非 @main，供應鏈安全）
+      - uses: cdklabs/close-stale-prs@1a78a1d653000acb4d0ba4c9e03eec9e30d664f7 # v0.0.8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-days: '21'        # 21 天沒動才進警告（遠超執行手週期）
+          response-days: '7'      # 警告後再 7 天才關
+          skip-labels: 'agent:pdf,keep'   # 執行手在跑 / keep 標記 一律豁免（逗號切、勿加空格）
+          # action 讀 dry-run 是 `getInput('dry-run') !== ''` → 非空字串即乾跑。
+          #   手動 dispatch 且 dry_run=true → 'true'（乾跑）；dry_run=false 或【排程】→ ''（實關）
+          dry-run: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && 'true' || '' }}
