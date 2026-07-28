@@ -142,19 +142,26 @@ multiset catches every count mismatch without inheriting that bug), then
 read every mismatch by eye against the rendered page to judge whether it
 was a real misread.
 
-**Result: 3 confirmed digit errors out of 213 ground-truth digit tokens
-per tier** (211 from `page.get_text()` across pages 7/9/23/49/144, plus 2
-hand-verified on page 17 — see ground-truth caveat above) — **426 total
-data points across both tiers, plus 5 unverifiable tokens** (4 on page 9
-clean, 1 on page 9 photosim, both inside the same tiny patent-diagram
-artwork). Both tiers
-stayed under 1.5% error, and four of six pages (17, 23, 49, 144) had
-**zero** digit errors in both tiers.
+**Result: 3 confirmed digit errors in total across both tiers** — 2 in
+the clean tier (page 9 and page 7) and 1 in the photo-sim tier (page 9) —
+against **213 ground-truth digit tokens per tier** (211 from
+`page.get_text()` across pages 7/9/23/49/144, plus 2 hand-verified on
+page 17 — see ground-truth caveat above), i.e. 426 data points in total.
+
+Per tier that is **0.94% (clean, 2/213) and 0.47% (photo-sim, 1/213)** —
+the 3 is a both-tiers total and must not be divided by a single tier's
+213. Four of six pages (17, 23, 49, 144) had **zero** digit errors in
+both tiers.
+
+**Plus 9 unverifiable tokens** — 4 in the clean tier and 5 in the
+photo-sim tier, all on page 9, all inside the same tiny patent-diagram
+artwork (itemised in the table). Flagged, never scored in either
+direction.
 
 | page | tier | confirmed errors | detail |
 |---|---|---|---|
 | 9 (photo) | clean | 1 (+4 unverifiable) | `[Figure 1-1 C]` → `[Figure 1-l C]` — digit "1" misread as lowercase "l". Also four spurious tokens (`1.1964`, `2`, `20`, `26,427`) inside the same tiny patent-diagram artwork as the photosim tier's `-10m` below, too small at this resolution to confirm against the source either way — flagged, not counted |
-| 9 (photo) | photosim | 1 (+1 unverifiable) | `Oct. 1, 1964` → `Oct.l,1964` — same "1"→"l" confusion. Also one spurious `-10m` token inside the tiny patent-diagram artwork on this page, too small at this resolution to confirm against the source either way — flagged, not counted |
+| 9 (photo) | photosim | 1 (+5 unverifiable) | `Oct. 1, 1964` → `Oct.l,1964` — same "1"→"l" confusion. Also five spurious tokens read out of the same tiny patent-diagram artwork (`26,427`, `2`, `20`, `-10m`, and a third copy of `1964` — the artwork's own "Filed Oct. 1, 1964" line, which the clean tier instead merged into the single token `1.1964`), too small at this resolution to confirm against the source either way — flagged, not counted. The artwork therefore produced one *more* hallucinated token under blur than clean, consistent with the page 23 limitation note below |
 | 7 (toc) | clean | 1 | one page-reference digit off by a single token out of 151 on this page; not chased further given the rate (0.7%) |
 | 7 (toc) | photosim | 0 | exact multiset match, 151/151 |
 | 17, 49, 144 | both | 0 | exact multiset match every time |
@@ -170,7 +177,9 @@ the rendered page and not scored either way.
 
 **Worst example**: the "1" / "l" (lowercase L) confusion on page 9 — the
 single most common OCR ambiguity class in Latin-script fonts, and it's
-what both real errors in this run turned out to be.
+what two of the three confirmed errors turned out to be. The third
+(page 7, clean) is a different shape: a dot-leader page reference read as
+`11-9` → `1-.`, which drops two digit tokens and invents one.
 
 **One limitation surfaced, not a digit error**: on page 23, the
 photo-sim tier's OCR attempted to read the embedded lift-equation figure
@@ -199,8 +208,12 @@ no DPI sweep, and Tier 2 bundles rotation together with perspective warp,
 lighting, blur, and JPEG compression — there's no isolated "skew-only"
 condition to compare against a "DPI-only" one. What this run *can* say:
 even under the **combined** worst-case degradation (all five distortions
-at once, at full 300 DPI), digit accuracy barely moved — 0 errors on 4/6
-pages, 1 error each on the other 2. That's a materially different result
+at once, at full 300 DPI), digit accuracy barely moved — the photo-sim
+tier is an exact multiset match on 5 of its 6 pages and carries one
+confirmed error in total (page 9), against the clean tier's 2. At n=3
+the two tiers are indistinguishable from each other; the claim here is
+only that degradation did not visibly cost digit accuracy. That is a
+materially different result
 from the earlier CJK report's 16-33% digit error rate on a clean scan,
 which supports last review's conclusion that the earlier "skew" finding
 was substantially a symptom of the CJK-model/CER-ordering issues, not a
@@ -257,8 +270,9 @@ resized, not recompressed, not enhanced.
 documents who needs to find/search/copy from them, and it holds up well
 in English even under combined realistic photo degradation** (rotation +
 perspective + lighting + blur + JPEG, all at once): digit accuracy stayed
-under 1.5% error across 6 varied pages, with 4 of 6 pages perfect in both
-tiers. The one clear failure mode is the classic "1" vs "l" (lowercase L)
+under 1% error per tier across 6 varied pages (0.94% clean, 0.47%
+photo-sim), with 4 of 6 pages perfect in both tiers. The one clear
+failure mode is the classic "1" vs "l" (lowercase L)
 font-shape ambiguity — worth a human glance at any output that will be
 used for something exact (e.g. serial numbers, dates), but not a
 systemic problem. The other finding worth carrying forward: **the naive
