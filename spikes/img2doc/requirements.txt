@@ -1,4 +1,4 @@
-# Path A (this container) needs only the five packages below.
+# Path A (this container) needs only the four packages below.
 pymupdf==1.28.0
 pillow
 numpy
@@ -16,4 +16,4 @@ rapidocr-onnxruntime==1.2.3
 # mismatch):
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 #   pip install docling==2.115.0 mineru==3.4.4
-docling==2.115.0
+# docling==2.115.0

@@ -8,7 +8,7 @@ point. Rendering the PDF to PNG and extracting its text layer are both
 fixture preparation; the converter under test (path_a_searchable_pdf.py)
 only ever sees the .png files this script writes, never the PDF itself.
 
-Source PDF: FAA Powered Parachute Flying Handbook (FAA-H-8083-6, 2007),
+Source PDF: FAA Powered Parachute Flying Handbook (FAA-H-8083-29, 2007),
 U.S. Department of Transportation, Federal Aviation Administration.
 URL: https://www.faa.gov/sites/faa.gov/files/regulations_policies/handbooks_manuals/aviation/powered_parachute_handbook.pdf
 Work of the US federal government, public domain under 17 U.S.C. Sec 105 -
@@ -160,12 +160,12 @@ def main():
         clean_img = render_page_png(doc, page_index, CLEAN_DPI)
         clean_path = os.path.join(OUT_DIR, f"page{page_index}_{shape}_clean.png")
         clean_img.save(clean_path)
-        manifest.append(clean_path)
+        manifest.append(os.path.relpath(clean_path, HERE))
 
         degraded = photo_sim(clean_img, seed=RNG_SEED + page_index)
         photo_path = os.path.join(OUT_DIR, f"page{page_index}_{shape}_photosim.jpg")
         save_jpeg_q75(degraded, photo_path)
-        manifest.append(photo_path)
+        manifest.append(os.path.relpath(photo_path, HERE))
 
         print(f"page {page_index} ({shape}): ground truth {len(gt_text)} chars -> {gt_path}")
 

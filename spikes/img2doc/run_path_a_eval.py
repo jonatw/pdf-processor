@@ -54,11 +54,8 @@ def main():
                 # ceiling (confirmed via ECS task metadata, not /proc/meminfo
                 # which over-reports ~2x here) and RapidOCR has previously
                 # OOM'd on specific samples. One process per image means an
-                # OOM loses one row, not the whole batch, and lets us retry
-                # a single condition at a lower DPI per the redo ruling
-                # ("attempt Tier 2 at 300 DPI once; if it OOMs, drop that
-                # tier to 150 DPI, record the drop, continue - one retry,
-                # not a sweep").
+                # OOM loses one row, not the whole batch, instead of losing
+                # everything already collected in this run.
                 proc = subprocess.run(
                     [sys.executable, "_path_a_one.py", image_path, pdf_out, str(dpi)],
                     cwd=HERE, capture_output=True, text=True, encoding="utf-8",

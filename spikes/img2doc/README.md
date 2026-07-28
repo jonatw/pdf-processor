@@ -47,6 +47,23 @@ the issue's own instruction ("if a shape isn't present, say so and skip
 it — don't hunt through hundreds of pages for a perfect specimen"), both
 shapes are skipped rather than manufactured.
 
+**Falsification check, not just the scans above.** FAA handbooks
+conventionally render the ADM "hazardous attitudes / antidotes" content
+as a ruled table, and this document does discuss ADM (page 17's "I'M
+SAFE" checklist card is from that section) — so that was the strongest
+candidate for a scan to have missed. Grepped the full text layer for
+`antidote|hazardous attitude|impulsivity|invulnerability|anti-authority|
+macho|resignation`: 3 hits, all prose references on pages 12-13 and in
+the table of contents, all pointing the reader **elsewhere** — "See
+Chapter 16 of the Pilot's Handbook of Aeronautical Knowledge
+(FAA-H-8083-25) to learn the decision-making process, risk management
+techniques, and hazardous attitude antidotes." None of the five named
+attitudes (anti-authority, impulsivity, invulnerability, macho,
+resignation) appear anywhere in this document — the table itself lives
+in a different FAA handbook, not this one. This turns "not found by
+scan" into "confirmed absent" for the specific shape most likely to have
+been missed.
+
 Six pages actually used — four real shape matches, plus two chosen for
 digit density since the two missing shapes left the digit-error count
 short of pages to test against:
@@ -128,13 +145,15 @@ was a real misread.
 **Result: 3 confirmed digit errors out of 213 ground-truth digit tokens
 per tier** (211 from `page.get_text()` across pages 7/9/23/49/144, plus 2
 hand-verified on page 17 — see ground-truth caveat above) — **426 total
-data points across both tiers, plus 1 unverifiable token.** Both tiers
+data points across both tiers, plus 5 unverifiable tokens** (4 on page 9
+clean, 1 on page 9 photosim, both inside the same tiny patent-diagram
+artwork). Both tiers
 stayed under 1.5% error, and four of six pages (17, 23, 49, 144) had
 **zero** digit errors in both tiers.
 
 | page | tier | confirmed errors | detail |
 |---|---|---|---|
-| 9 (photo) | clean | 1 | `[Figure 1-1 C]` → `[Figure 1-l C]` — digit "1" misread as lowercase "l" |
+| 9 (photo) | clean | 1 (+4 unverifiable) | `[Figure 1-1 C]` → `[Figure 1-l C]` — digit "1" misread as lowercase "l". Also four spurious tokens (`1.1964`, `2`, `20`, `26,427`) inside the same tiny patent-diagram artwork as the photosim tier's `-10m` below, too small at this resolution to confirm against the source either way — flagged, not counted |
 | 9 (photo) | photosim | 1 (+1 unverifiable) | `Oct. 1, 1964` → `Oct.l,1964` — same "1"→"l" confusion. Also one spurious `-10m` token inside the tiny patent-diagram artwork on this page, too small at this resolution to confirm against the source either way — flagged, not counted |
 | 7 (toc) | clean | 1 | one page-reference digit off by a single token out of 151 on this page; not chased further given the rate (0.7%) |
 | 7 (toc) | photosim | 0 | exact multiset match, 151/151 |
@@ -199,8 +218,9 @@ resized, not recompressed, not enhanced.
 
 ### 6. Resource cost, measured
 
-- **Wall-clock**: 7.9-16.4s/page across all 12 samples (avg ~11.7s),
-  single-threaded on this container's 1 vCPU.
+- **Wall-clock**: 7.78-16.05s/page across all 12 samples (avg ~11.80s,
+  from `samples/rendered/path_a_results.csv`), single-threaded on this
+  container's 1 vCPU.
 - **Peak RSS**: ~1.56GB for one RapidOCR call on a 300 DPI photo-sim
   image (`resource.getrusage(RUSAGE_CHILDREN).ru_maxrss` around a
   subprocess call) — against the real 2048MiB container ceiling (see
@@ -214,7 +234,9 @@ resized, not recompressed, not enhanced.
   2550x3300x3 bytes, i.e. genuinely zero compression), which would have
   made all 6 clean-tier outputs alone ~150MB. Fixed by adding
   `garbage=4, deflate=True, deflate_images=True` to the `save()` call —
-  cut every output to under 1.3MB (12 PDFs, ~13MB total) with **no
+  cut output size dramatically (largest file 3.89MB, all 12 PDFs ~13MB
+  total, against the ~150MB the uncompressed version would have produced)
+  with **no
   change** to visible pixels or extracted text (re-verified: pixel-
   identical, search still finds known strings, same char count). This
   is a real fix to ship, not a spike-only workaround — anyone using this
@@ -261,9 +283,14 @@ Local-machine next steps, unchanged from the split instructions:
   do images arrive at sane resolution in the `.docx`; digit accuracy on
   a dense numeric page (page 49 here is the obvious candidate — it's the
   most digit-dense of the six).
-- `path_b_docling.py` in this directory is a working starting point
-  (RapidOCR configured as its OCR backend instead of default EasyOCR,
-  to avoid a second torch-based OCR stack).
+- `path_b_docling.py` in this directory has **never completed a run
+  here** — it OOM'd loading the TableFormer model before producing any
+  output, against a different document, before English-only scope was
+  set. Treat it as an **unverified starting point** for the local box,
+  not a working implementation (RapidOCR is configured as its OCR
+  backend instead of default EasyOCR, to avoid a second torch-based OCR
+  stack; DoclingDocument's HTML export → pandoc is used for the docx
+  step since docx is a Docling input format only, not an output one).
 - Optionally, also worth a run on a real box: `ocrmypdf` for Path A
   (the tool anyone on a normal machine would reach for — see
   "Environment notes", it couldn't be installed here) compared against
