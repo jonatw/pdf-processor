@@ -125,10 +125,12 @@ multiset catches every count mismatch without inheriting that bug), then
 read every mismatch by eye against the rendered page to judge whether it
 was a real misread.
 
-**Result: 3 confirmed digit errors out of ~211 ground-truth digit tokens
-per tier (422 total data points across both tiers), plus 1 unverifiable
-token.** Both tiers stayed under 1.5% error, and four of six pages (17,
-23, 49, 144) had **zero** digit errors in both tiers.
+**Result: 3 confirmed digit errors out of 213 ground-truth digit tokens
+per tier** (211 from `page.get_text()` across pages 7/9/23/49/144, plus 2
+hand-verified on page 17 — see ground-truth caveat above) — **426 total
+data points across both tiers, plus 1 unverifiable token.** Both tiers
+stayed under 1.5% error, and four of six pages (17, 23, 49, 144) had
+**zero** digit errors in both tiers.
 
 | page | tier | confirmed errors | detail |
 |---|---|---|---|
