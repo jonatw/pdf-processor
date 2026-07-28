@@ -32,9 +32,7 @@ def get_engine():
 
 
 def image_to_searchable_pdf(image_path, pdf_path, dpi=300):
-    img = Image.open(image_path)
-    img_rgb = img.convert("RGB")
-    w_px, h_px = img_rgb.size
+    w_px, h_px = Image.open(image_path).size
 
     # Page size in points (72 pt/inch) derived from the pixel size at the
     # image's real resolution, so a 72 DPI scan and a 300 DPI scan of the

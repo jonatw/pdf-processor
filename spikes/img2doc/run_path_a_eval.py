@@ -69,7 +69,8 @@ def main():
                 # that loses one row, not the whole batch.
                 proc = subprocess.run(
                     [sys.executable, "_path_a_one.py", image_path, pdf_out, str(dpi)],
-                    cwd=HERE, capture_output=True, text=True, timeout=180,
+                    cwd=HERE, capture_output=True, text=True, encoding="utf-8",
+                    timeout=180,
                 )
                 elapsed = time.time() - t0
 
