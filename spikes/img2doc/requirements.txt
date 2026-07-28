@@ -17,3 +17,7 @@ rapidocr-onnxruntime==1.2.3
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 #   pip install docling==2.115.0 mineru==3.4.4
 # docling==2.115.0
+#
+# path_b_docling.py also shells out to the `pandoc` binary (HTML -> docx
+# step, not pip-installable) - install it separately, e.g. `apt install
+# pandoc` or `brew install pandoc`, before running that script.

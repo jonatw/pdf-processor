@@ -89,8 +89,9 @@ def image_to_searchable_pdf(image_path, pdf_path, dpi=300):
     # almost exactly the raw pixel size (2550x3300x3 bytes), i.e. no
     # compression at all. garbage=4 additionally drops the now-unused
     # original-resolution copy left behind by insert_textbox's shrink-to-fit
-    # retry loop. Together this took the clean-tier PDFs from ~25MB to
-    # under 1MB with no change to visible pixels or extracted text.
+    # retry loop. Together this took the clean-tier PDFs from ~25MB down to
+    # a largest file of 3.89MB (12.43MB total across all 12 samples) with
+    # no change to visible pixels or extracted text.
     doc.save(pdf_path, garbage=4, deflate=True, deflate_images=True)
     doc.close()
     # detected: boxes RapidOCR found. written: boxes that made it into the

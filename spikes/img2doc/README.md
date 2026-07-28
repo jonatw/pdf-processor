@@ -21,7 +21,7 @@ PDF access at all.
 ## Samples
 
 **Source**: [FAA Powered Parachute Flying Handbook](https://www.faa.gov/sites/faa.gov/files/regulations_policies/handbooks_manuals/aviation/powered_parachute_handbook.pdf)
-(FAA-H-8083-6, 2007). Work of the US federal government, public domain
+(FAA-H-8083-29, 2007). Work of the US federal government, public domain
 under 17 U.S.C. Sec 105 — safe to commit derived samples to this public
 repo. `sha256sum` of the copy this spike ran against:
 `5a2c22880af2f5f220bc92b8f033c9feb142cb6efe907c9976b51c3d7a97d475`
@@ -291,6 +291,9 @@ Local-machine next steps, unchanged from the split instructions:
   backend instead of default EasyOCR, to avoid a second torch-based OCR
   stack; DoclingDocument's HTML export → pandoc is used for the docx
   step since docx is a Docling input format only, not an output one).
+  The `pandoc` binary itself is a separate system install, not covered
+  by `requirements.txt` — install it before running this script (see
+  `requirements.txt`'s Path B block).
 - Optionally, also worth a run on a real box: `ocrmypdf` for Path A
   (the tool anyone on a normal machine would reach for — see
   "Environment notes", it couldn't be installed here) compared against
