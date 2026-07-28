@@ -1,36 +1,67 @@
 #!/usr/bin/env python3
-"""Render pages from a public source PDF to images, then generate degraded
-variants (DPI drop, skew, perspective warp) for the img2doc OCR spike.
+"""Render pages from a public source PDF to images, then generate one
+"photo-sim" degraded variant per page, for the img2doc OCR spike.
 
-Ground truth text for CER scoring comes straight from the source PDF's text
-layer (fitz page.get_text()), NOT from OCR - that's the whole point.
+Ground truth text for the digit-error count comes straight from the source
+PDF's text layer (fitz page.get_text()), NOT from OCR - that's the whole
+point. Rendering the PDF to PNG and extracting its text layer are both
+fixture preparation; the converter under test (path_a_searchable_pdf.py)
+only ever sees the .png files this script writes, never the PDF itself.
 
-Source PDF: 中華民國統計年鑑 103年版 (Statistical Yearbook of the Republic
-of China, 2014 ed.), Directorate-General of Budget, Accounting and
-Statistics (DGBAS), Taiwan. Public government publication.
-URL: https://ws.dgbas.gov.tw/001/Upload/466/ebook/ebook_90277//pdf/full.pdf
-(server presents an incomplete cert chain - fetched with -k; content is a
-plain public PDF, not a spoofed host - domain matches DGBAS's own ws.dgbas.gov.tw)
+Source PDF: FAA Powered Parachute Flying Handbook (FAA-H-8083-6, 2007),
+U.S. Department of Transportation, Federal Aviation Administration.
+URL: https://www.faa.gov/sites/faa.gov/files/regulations_policies/handbooks_manuals/aviation/powered_parachute_handbook.pdf
+Work of the US federal government, public domain under 17 U.S.C. Sec 105 -
+safe to commit derived samples to this public repo.
 
-Pages picked: dense Traditional-Chinese ruled tables full of numbers, which
-is exactly the fidelity risk this spike is measuring.
-- page index 30 (label "16 統計年鑑 103年"): age-bracket population counts
-- page index 180 (label "166 統計年鑑 103年"): national wealth (NT$ trillion),
-  mixes prose (説明/附註) with a numeric table
+Six pages selected, one per required document shape - see README "Sample
+selection" for the search method and why two shapes (ruled table, table
+spanning a page break) are not present in this document and are skipped
+per spec ("if a shape isn't present, say so and skip it"):
+
+- page  9 (printed "1-1"):  photo               - chapter opener photos
+- page 23 (printed "2-9"):  diagram/chart        - Figure 2-15, level flight force vectors
+- page144 (printed "G-2"):  multi-column text    - glossary, 2-column layout
+- page 17 (printed "1-9"):  borderless-table analog - Figure 1-5, "I'M SAFE" checklist
+  card (label: question pairs, no ruled cells) - closest thing to a
+  borderless table this document has; not a true data grid, flagged in README
+- page  7 (printed page vii): digit-dense text  - table of contents (dot-leader
+  page references), extra digit-error signal since no ruled table exists
+- page 49 (printed "4-5"):  digit-dense text    - gearbox RPM specs in prose
+  (6,500 / 3.47 / 1,873 / 5,500 / 2.43 / 2,263), extra digit-error signal
+
+Ruled table and table-spans-page-break: not found in this 161-page
+document after a full-document digit-density scan, a keyword scan
+(checklist/weight and balance/limitation/placard), a unit-keyword scan
+(lb/psi/rpm/gal/hp), a drawing-count scan (vector grid lines), and visual
+inspection of the strongest candidates. This is a narrative training
+manual (prose + photos + line diagrams), not a spec-sheet document -
+unlike the larger Pilot's Handbook of Aeronautical Knowledge, which the
+issue explicitly deprioritized in favor of this smaller download.
 """
 import io
 import os
 
 import fitz  # PyMuPDF
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SOURCE_PDF = os.path.join(HERE, "samples", "_source_pdfs", "dgbas_yearbook.pdf")
+SOURCE_PDF = os.path.join(HERE, "samples", "_source_pdfs", "powered_parachute_handbook.pdf")
 OUT_DIR = os.path.join(HERE, "samples", "rendered")
 
-PAGES = [30, 180]
-DPIS = [300, 150, 72]
+PAGES = {
+    9: "photo",
+    23: "diagram",
+    144: "multi_column",
+    17: "borderless_table_analog",
+    7: "digit_dense_toc",
+    49: "digit_dense_prose",
+}
+CLEAN_DPI = 300
+
+# Fixed seed -> deterministic photo-sim degradation across reruns.
+RNG_SEED = 20260728
 
 
 def render_page_png(doc, page_index, dpi):
@@ -40,24 +71,6 @@ def render_page_png(doc, page_index, dpi):
     pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
     img = Image.open(io.BytesIO(pix.tobytes("png")))
     return img
-
-
-def add_skew(img, degrees=3.0):
-    # Rotate and expand canvas with white fill, matching a slightly crooked
-    # phone photo rather than a perfectly aligned flatbed scan.
-    return img.rotate(degrees, resample=Image.BICUBIC, expand=True, fillcolor="white")
-
-
-def add_perspective(img, warp_frac=0.02):
-    # Mild quadrilateral warp: push the top-right and bottom-left corners
-    # inward, simulating a handheld shot that isn't perfectly perpendicular
-    # to the page.
-    w, h = img.size
-    dx, dy = int(w * warp_frac), int(h * warp_frac)
-    src = [(0, 0), (w, 0), (w, h), (0, h)]
-    dst = [(0, 0), (w - dx, dy), (w - dx, h - dy), (0, h)]
-    coeffs = _perspective_coeffs(dst, src)
-    return img.transform((w, h), Image.PERSPECTIVE, coeffs, resample=Image.BICUBIC, fillcolor="white")
 
 
 def _perspective_coeffs(src_pts, dst_pts):
@@ -72,34 +85,89 @@ def _perspective_coeffs(src_pts, dst_pts):
     return res.tolist()
 
 
+def photo_sim(img, seed):
+    """Tier 2 - simulated phone photo, not just a downscaled clean render.
+
+    Deterministic given `seed`: perspective warp, ~3deg rotation, an uneven
+    lighting gradient, JPEG q75 recompression, slight blur. Order matches
+    the issue body: warp+rotate the "scan" first (the geometric distortion
+    of an off-angle handheld shot), then apply the lens/sensor/codec
+    artifacts (lighting, blur, JPEG) on top, since those happen to the
+    photo, not to the page.
+    """
+    rng = np.random.default_rng(seed)
+    w, h = img.size
+
+    # Perspective warp: push top-right and bottom-left corners inward by a
+    # small fraction, simulating a handheld shot not perfectly perpendicular
+    # to the page.
+    warp_frac = 0.02
+    dx, dy = int(w * warp_frac), int(h * warp_frac)
+    src = [(0, 0), (w, 0), (w, h), (0, h)]
+    dst = [(0, 0), (w - dx, dy), (w - dx, h - dy), (0, h)]
+    coeffs = _perspective_coeffs(dst, src)
+    img = img.transform((w, h), Image.PERSPECTIVE, coeffs, resample=Image.BICUBIC, fillcolor="white")
+
+    # ~3 degree rotation, expand canvas with white fill (crooked photo, not
+    # a perfectly aligned flatbed scan).
+    degrees = 3.0 * float(rng.uniform(0.8, 1.2))  # 2.4-3.6deg, seeded
+    img = img.rotate(degrees, resample=Image.BICUBIC, expand=True, fillcolor="white")
+
+    # Uneven lighting: a soft radial brightness gradient, brighter on one
+    # side, dimmer on the other + a corner shadow - approximates a single
+    # off-axis light source (window, overhead lamp) instead of a scanner's
+    # even illumination.
+    w2, h2 = img.size
+    yy, xx = np.mgrid[0:h2, 0:w2]
+    cx, cy = w2 * float(rng.uniform(0.2, 0.4)), h2 * float(rng.uniform(0.1, 0.3))
+    dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+    dist_norm = dist / dist.max()
+    gradient = 1.15 - 0.35 * dist_norm  # brighter near (cx,cy), dimmer far away
+    arr = np.asarray(img).astype(np.float64)
+    arr *= gradient[..., None]
+    arr = np.clip(arr, 0, 255).astype(np.uint8)
+    img = Image.fromarray(arr)
+
+    # Slight blur + mild sensor noise (phone lens softness / high-ISO grain).
+    img = img.filter(ImageFilter.GaussianBlur(radius=0.6))
+    arr = np.asarray(img).astype(np.int16)
+    noise = rng.normal(0, 4.0, arr.shape).astype(np.int16)
+    arr = np.clip(arr + noise, 0, 255).astype(np.uint8)
+    img = Image.fromarray(arr)
+
+    # Contrast nudge down slightly, as JPEG-compressed phone photos tend to
+    # look flatter than a scanner's clean render.
+    img = ImageEnhance.Contrast(img).enhance(0.92)
+
+    return img
+
+
+def save_jpeg_q75(img, path):
+    img.convert("RGB").save(path, format="JPEG", quality=75)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     doc = fitz.open(SOURCE_PDF)
 
     manifest = []
-    for page_index in PAGES:
+    for page_index, shape in PAGES.items():
         gt_text = doc[page_index].get_text()
         gt_path = os.path.join(OUT_DIR, f"page{page_index}_ground_truth.txt")
         with open(gt_path, "w", encoding="utf-8") as f:
             f.write(gt_text)
 
-        for dpi in DPIS:
-            img = render_page_png(doc, page_index, dpi)
-            base = f"page{page_index}_dpi{dpi}"
+        clean_img = render_page_png(doc, page_index, CLEAN_DPI)
+        clean_path = os.path.join(OUT_DIR, f"page{page_index}_{shape}_clean.png")
+        clean_img.save(clean_path)
+        manifest.append(clean_path)
 
-            clean_path = os.path.join(OUT_DIR, f"{base}_clean.png")
-            img.save(clean_path)
-            manifest.append(clean_path)
+        degraded = photo_sim(clean_img, seed=RNG_SEED + page_index)
+        photo_path = os.path.join(OUT_DIR, f"page{page_index}_{shape}_photosim.jpg")
+        save_jpeg_q75(degraded, photo_path)
+        manifest.append(photo_path)
 
-            skew_path = os.path.join(OUT_DIR, f"{base}_skew3deg.png")
-            add_skew(img).save(skew_path)
-            manifest.append(skew_path)
-
-            persp_path = os.path.join(OUT_DIR, f"{base}_perspective.png")
-            add_perspective(img).save(persp_path)
-            manifest.append(persp_path)
-
-        print(f"page {page_index}: ground truth {len(gt_text)} chars -> {gt_path}")
+        print(f"page {page_index} ({shape}): ground truth {len(gt_text)} chars -> {gt_path}")
 
     manifest_path = os.path.join(OUT_DIR, "manifest.txt")
     with open(manifest_path, "w") as f:

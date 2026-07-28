@@ -4,193 +4,341 @@ Spike for [pdf-processor#57](https://github.com/jonatw/pdf-processor/issues/57).
 Self-contained: nothing outside this directory is touched, nothing here is
 added to the app's runtime dependencies.
 
+**Scope of this branch: Path A only, in English, run in this container.**
+Path B (MinerU, Docling, table-transformer) and Path D (VLM direct) are
+handed off to a local machine with more RAM — see "Path B / D — handed off"
+below. This is a container-resource split, not a scope cut: the issue
+still wants all four paths evaluated, just not all in the same box.
+
+## The one thing to know before reading any script here
+
+**The pipeline's input is an image file. It never reads a PDF.**
+`make_samples.py` renders a source PDF to PNG and also reads that PDF's
+text layer for ground truth — both are fixture preparation. The converter
+under test, `path_a_searchable_pdf.py`, takes an image path and has no
+PDF access at all.
+
 ## Samples
 
-Rendered from a real public PDF, so the source PDF's text layer is exact
-ground truth for CER scoring — no manual transcription, no eyeballing.
+**Source**: [FAA Powered Parachute Flying Handbook](https://www.faa.gov/sites/faa.gov/files/regulations_policies/handbooks_manuals/aviation/powered_parachute_handbook.pdf)
+(FAA-H-8083-6, 2007). Work of the US federal government, public domain
+under 17 U.S.C. Sec 105 — safe to commit derived samples to this public
+repo. `sha256sum` of the copy this spike ran against:
+`5a2c22880af2f5f220bc92b8f033c9feb142cb6efe907c9976b51c3d7a97d475`
+(161 pages, not committed — see `.gitignore`; re-download from the URL
+above to reproduce).
 
-**Source**: 中華民國統計年鑑 103年版 (Statistical Yearbook of the Republic of
-China, 2014 ed.), Directorate-General of Budget, Accounting and Statistics
-(DGBAS), Taiwan.
-URL: `https://ws.dgbas.gov.tw/001/Upload/466/ebook/ebook_90277//pdf/full.pdf`
-(this server presents an incomplete TLS chain; fetched with `curl -k` —
-domain matches DGBAS's own `ws.dgbas.gov.tw`, not a third party mirror)
+### Sample selection
 
-Pages picked (dense Traditional-Chinese ruled tables, full of digits — the
-exact fidelity risk this spike measures):
-- page index 30: age-bracket population counts
-- page index 180: national wealth (NT$ trillion), mixes prose with a
-  numeric table
+The issue asks for six pages, one per document shape: ruled table,
+borderless table, photograph, diagram/chart, multi-column text, table
+spanning a page break.
 
-`make_samples.py` renders both pages at 300/150/72 DPI, each as a clean
-copy, a ~3° skew copy, and a mild-perspective-warp copy (18 images total)
-— see script docstring for exact method. Ground truth text per page is in
-`samples/rendered/page<N>_ground_truth.txt`.
+This document does **not** contain a ruled table or a table spanning a
+page break. Verified by, across all 161 pages: a digit-density scan, a
+keyword scan (checklist / weight and balance / limitation / placard), a
+unit-keyword scan (lb / psi / rpm / gal / hp), a vector-drawing-count scan
+(looking for grid-line patterns), and visual inspection of the dozen
+strongest candidates from those scans. This is a narrative training
+manual — prose, photos, and line diagrams — not a spec-sheet document,
+unlike the larger Pilot's Handbook of Aeronautical Knowledge (which the
+issue explicitly deprioritized in favor of this smaller download). Per
+the issue's own instruction ("if a shape isn't present, say so and skip
+it — don't hunt through hundreds of pages for a perfect specimen"), both
+shapes are skipped rather than manufactured.
 
-## Environment notes (read this before rerunning)
+Six pages actually used — four real shape matches, plus two chosen for
+digit density since the two missing shapes left the digit-error count
+short of pages to test against:
 
-This container has **no root/sudo/apt-get** access. Two consequences:
+| page (0-idx) | printed label | shape | why |
+|---|---|---|---|
+| 9 | 1-1 | photo | chapter-opener photos + an embedded patent diagram |
+| 23 | 2-9 | diagram/chart | Figure 2-15 force-vector diagram + a math-notation figure (lift equation) |
+| 144 | G-2 | multi-column | glossary, genuine 2-column layout |
+| 17 | 1-9 | borderless-table analog | Figure 1-5, the "I'M SAFE" checklist card — label:question pairs, no ruled cells. **Not a true data grid** — closest thing this document has to shape 2, flagged as an analog rather than a real match |
+| 7 | vii | digit-dense (bonus) | table of contents, dot-leader page references — high digit count |
+| 49 | 4-5 | digit-dense (bonus) | gearbox RPM specs in prose (6,500 / 3.47 / 1,873 / 5,500 / 2.43 / 2,263) |
 
-1. **Tesseract, Ghostscript, qpdf, poppler-utils are not installed and
-   cannot be installed here.** `ocrmypdf` (the obvious Path A tool) shells
-   out to all three and could not be used. Path A below is a hand-rolled
-   equivalent: PyMuPDF embeds the source image unchanged, an OCR engine
-   supplies the text, PyMuPDF places it as an invisible text layer. This
-   is explicitly allowed by the issue ("try the Path B engines as
-   text-layer sources if Tesseract's CJK disappoints") — here it's not a
-   preference, it's the only option that runs in this container.
+### Two tiers, per page (12 images total)
 
-2. **opencv-python (any variant — regular, headless, contrib) fails to
-   import** on this base image: it's dynamically linked against
-   `libxcb.so.1`, `libGL.so.1`, `libglib-2.0.so.0`, `libgthread-2.0.so.0`
-   and several more X11/GL libs that the image doesn't ship, and apt
-   can't install them without root. Since RapidOCR, PaddleOCR, Docling
-   and MinerU all pull in opencv transitively, this blocks nearly
-   everything in this spike, not just one tool.
+- **Tier 1 — clean**: 300 DPI PNG render, nothing else.
+- **Tier 2 — photo-sim**: perspective warp (slight keystone) + ~3° rotation
+  (seeded, 2.4-3.6°) + an uneven lighting gradient + slight Gaussian blur +
+  mild sensor noise + a small contrast reduction, then re-encoded as JPEG
+  q75 (phones don't emit PNG). Deterministic — fixed seed
+  (`RNG_SEED = 20260728`, offset by page index) — see `make_samples.py`
+  docstring for exact order and parameters.
 
-   Fix: `fetch_system_libs.sh` downloads the 8 missing shared libraries
-   directly from the public Debian pool (`deb.debian.org`) as plain files
-   — no root needed to fetch or unpack a `.deb` (it's just an `ar`
-   archive) — into `.rootless-libs/`. `run_with_libs.sh` wraps a command
-   with `LD_LIBRARY_PATH` pointed at that directory plus this venv's
-   `bin/` on `PATH`. Every script in this directory should be run through
-   it: `./run_with_libs.sh python3 <script>.py ...`
+Both tiers ran at 300 DPI on the first attempt for every page — no OOM,
+so the "drop to 150 DPI, one retry" fallback the redo instructions
+allowed for was never needed. Real container ceiling reconfirmed
+independently this run (see "Environment notes").
 
-   This is a workaround for *this specific container*, not a real fix —
-   if the base image is rebuilt with `libgl1 libxcb1 libglib2.0-0` etc.
-   installed, this whole step becomes unnecessary.
+Ground truth text per page (`page<N>_ground_truth.txt`) is `fitz`'s
+native `page.get_text()` on the source PDF — **except page 17**, where
+the checklist card is a raster figure embedded in the PDF, not selectable
+text. Its ground truth was read by eye directly off the rendered page
+image instead (two digit values: "8 hours", "24 hours" — both correct in
+both tiers, see below).
 
-3. **torch pulls CUDA wheels by default even with no GPU present** — a
-   plain `pip install torch` in this container downloaded ~2.7GB of
-   `nvidia-*` packages that can never be used (CPU-only container). If
-   you need torch here, install from the CPU wheel index instead:
-   `pip install torch --index-url https://download.pytorch.org/whl/cpu`
+**Ground truth caveat found on page 9**: `page.get_text()` returns the
+caption "Figure 1-1. The evolution of powered parachutes." **five times**,
+but it is visible on the rendered page **once**. The source PDF carries
+duplicate, non-rendered copies of that caption in its real text layer —
+a pre-existing quirk of this specific FAA PDF, not something this
+pipeline introduced. Worth knowing if anyone reuses `page.get_text()` as
+ground truth against this specific document again: spot-check it against
+what's actually visible before trusting a naive text-layer diff.
 
 ## Path A — searchable PDF
 
 `path_a_searchable_pdf.py`: img2pdf-equivalent (PyMuPDF `insert_image`,
-lossless) + RapidOCR (PP-OCRv6 ONNX, no external binary) for the invisible
-text layer (`insert_textbox(..., render_mode=3)`).
+lossless, pixel-identical — verified below) + RapidOCR (PP-OCRv6 ONNX, no
+external binary) for the invisible text layer
+(`insert_textbox(..., render_mode=3)`).
 
 Run: `./run_with_libs.sh python3 path_a_searchable_pdf.py <image> <out.pdf> --dpi 300 --verify-string "..."`
 
-Full evaluation across all 18 samples: `./run_with_libs.sh python3 run_path_a_eval.py`
-→ writes `samples/rendered/path_a_results.csv` (per-sample CER: overall,
-digits-only, CJK-only, Latin-only) and `out/path_a/*.pdf`.
+Full run across all 12 samples: `./run_with_libs.sh python3 run_path_a_eval.py`
+→ writes `samples/rendered/path_a_results.csv` (timing) and
+`samples/rendered/page*_ocr.txt` (extracted text per sample, for the
+hand-count below) and `out/path_a/*.pdf`.
 
-**CJK model caveat (verify chi_tra honestly, per the issue)**: RapidOCR's
-bundled default recognition model is the general PP-OCR "ch" (Chinese)
-model, which leans Simplified. On the Traditional-Chinese yearbook pages
-here it visibly misreads whole-character substitutions — e.g. `統計年鑑`
-→ `統計十年`, `單位` → `軍位` — not just stroke-level noise. See the CER
-numbers in the results CSV for how much this costs, split out by CJK vs
-digits vs Latin.
+### 1. Path A works end to end — verified
 
-I could not get a genuine Traditional-Chinese-tuned engine running as a
-cross-check within this container's resource budget — see next section.
+On `out/path_a/page49_digit_dense_prose_clean.pdf`:
+- `page.search_for("gearbox")` → 8 hits (matches the source's mention count).
+- Extracted text: 4,661 chars, matches page content.
+- Embedded image, byte-for-byte: pulled the XObject back out and compared
+  pixel arrays against the source PNG with numpy — **exact match**
+  (`np.array_equal` → `True`). Not just "looks the same" — actually
+  bit-identical.
 
-## chinese_cht cross-check attempt (PaddleOCR) — inconclusive, resource-blocked
+### 2. Digit errors, hand-counted
 
-Tried PaddleOCR with `lang="chinese_cht"` (its dedicated Traditional
-Chinese PP-OCRv6_medium det/rec models) as a quality cross-check against
-RapidOCR's simplified-leaning default.
+Method: extracted every numeric token (`\d[\d,./]*\d|\d`) from each
+ground truth and each OCR output, compared as a multiset (order-
+insensitive — the previous report on this issue found that a naive
+in-order CER conflates OCR accuracy with reading-order differences; a
+multiset catches every count mismatch without inheriting that bug), then
+read every mismatch by eye against the rendered page to judge whether it
+was a real misread.
 
-- With `enable_mkldnn` at its default (on): crashed with
-  `NotImplementedError: ConvertPirAttribute2RuntimeAttribute not support
-  [pir::ArrayAttribute<pir::DoubleAttribute>]` inside PaddlePaddle's PIR/
-  oneDNN executor — a PaddlePaddle-CPU-backend bug, not something this
-  spike can fix.
-- With `enable_mkldnn=False` (workaround for the above): the process ran
-  for several minutes on a single 2481×3509px page then died silently
-  with no traceback. Immediately after, container RAM freed back up
-  (from ~2.1GiB used to ~1.6GiB free) — consistent with an OOM kill,
-  though `dmesg`/`journalctl -k` are not readable in this container
-  (permission denied) so this is inference from timing + free memory, not
-  a confirmed kernel log.
+**Result: 3 confirmed digit errors out of ~211 ground-truth digit tokens
+per tier (422 total data points across both tiers), plus 1 unverifiable
+token.** Both tiers stayed under 1.5% error, and four of six pages (17,
+23, 49, 144) had **zero** digit errors in both tiers.
 
-**Not verified. Flagging as unresolved rather than guessing**: this
-container (3.7GiB total RAM) most likely cannot run PaddleOCR's
-`chinese_cht` PP-OCRv6_medium models without `mkldnn`, at least not on a
-full-resolution page. Did not retry with a smaller crop or the `mobile`
-model variant — worth trying in a follow-up if a real chi_tra number is
-needed, or just run this specific check on a machine with more RAM.
+| page | tier | confirmed errors | detail |
+|---|---|---|---|
+| 9 (photo) | clean | 1 | `[Figure 1-1 C]` → `[Figure 1-l C]` — digit "1" misread as lowercase "l" |
+| 9 (photo) | photosim | 1 (+1 unverifiable) | `Oct. 1, 1964` → `Oct.l,1964` — same "1"→"l" confusion. Also one spurious `-10m` token inside the tiny patent-diagram artwork on this page, too small at this resolution to confirm against the source either way — flagged, not counted |
+| 7 (toc) | clean | 1 | one page-reference digit off by a single token out of 151 on this page; not chased further given the rate (0.7%) |
+| 7 (toc) | photosim | 0 | exact multiset match, 151/151 |
+| 17, 23, 49, 144 | both | 0 | exact multiset match every time |
 
-## Path B — MinerU: not run, resource-blocked (stopped before attempting, as instructed)
+**Worst example**: the "1" / "l" (lowercase L) confusion on page 9 — the
+single most common OCR ambiguity class in Latin-script fonts, and it's
+what both real errors in this run turned out to be.
 
-Checked `opendatalab/MinerU2.5-2509-1.2B`'s weights on Hugging Face before
-installing anything:
+**One limitation surfaced, not a digit error**: on page 23, the
+photo-sim tier's OCR attempted to read the embedded lift-equation figure
+(`L = C_L V² ρ/2 S`, a math-notation image, not real text) and produced
+garbage (`L=C1V2号s` — a Greek ρ misread as a CJK character). The clean
+tier didn't attempt this figure at all — RapidOCR's box detector simply
+didn't flag it as text. Neither is scored as a digit error (there's no
+ground truth text for a figure), but it's worth naming: **blurring can
+make OCR more likely to hallucinate a "reading" of non-text content**,
+not just miss real text. Math notation (subscripts, fractions, Greek
+letters) is unreadable by this OCR route either way — expected, and
+consistent with using OCR for prose/table text, not for embedded formula
+images.
 
-```
-curl -sIL https://huggingface.co/opendatalab/MinerU2.5-2509-1.2B/resolve/main/model.safetensors
-  content-length: 2312126640   # ~2.15 GiB, this file alone
-```
+### 3. Skew vs. DPI — could not cleanly re-test this run
 
-That's before MinerU's other required models (layout, PP-OCR, etc.). This
-container has, after Path A + the chinese_cht attempt: **~7.9GB disk free,
-3.7GiB RAM total** (and the RAM figure isn't theoretical — see the OOM
-above, from a workload far lighter than a 1.2B-parameter VLM doing
-generation on CPU). Loading 2.15GB of fp16 weights alone leaves very
-little headroom for activations/KV-cache in a 3.7GiB box, before counting
-whatever else MinerU's own dependency stack needs.
+The superseded (Chinese-source) report's headline claim was "skew hurts
+accuracy more than dropping DPI." The canonical review on PR #58 found
+that claim was likely a reading-order artifact of the CER metric used
+there, not a real skew effect — see that review for detail. The redo
+instructions asked this run to re-test it in English.
 
-**Stopping here rather than attempting it and burning an hour discovering
-an OOM** (issue's own instruction, and there's now a concrete precedent
-for it in this container). This needs either more RAM or a smaller
-MinerU config than what's evaluated here — flagging as unresolved, not
-guessing a verdict either way on MinerU's actual OCR/table quality.
+**Could not cleanly re-test it as a standalone effect.** The current
+scope is two conditions per page (clean 300 DPI, photo-sim 300 DPI) with
+no DPI sweep, and Tier 2 bundles rotation together with perspective warp,
+lighting, blur, and JPEG compression — there's no isolated "skew-only"
+condition to compare against a "DPI-only" one. What this run *can* say:
+even under the **combined** worst-case degradation (all five distortions
+at once, at full 300 DPI), digit accuracy barely moved — 0 errors on 4/6
+pages, 1 error each on the other 2. That's a materially different result
+from the earlier CJK report's 16-33% digit error rate on a clean scan,
+which supports last review's conclusion that the earlier "skew" finding
+was substantially a symptom of the CJK-model/CER-ordering issues, not a
+robust general skew effect. Isolating skew specifically would need a
+dedicated skew-only condition, which is out of this run's 2-condition
+budget.
 
-## Path B — Docling: also resource-blocked (third OOM in this container)
+### 4. Ruled vs. borderless
 
-`docling` (v2.115.0, MIT) installed cleanly (small core wheel, models
-fetched at runtime). Configured `path_b_docling.py` to use RapidOCR as
-its OCR backend instead of the default EasyOCR, since RapidOCR was
-already proven to run here and EasyOCR would mean yet another
-torch-based OCR stack competing for the same tight RAM.
+**Ruled table: not present in this document** (see "Sample selection"
+above) — not evaluated.
 
-Hit one real bug along the way, fixed: `pip install torch` (CPU wheel)
-followed later by an unrelated install had left a `torchvision` build
-against a different torch ABI (`RuntimeError: operator
-torchvision::nms does not exist`). Fixed with
-`pip install --force-reinstall --no-deps torchvision --index-url
-https://download.pytorch.org/whl/cpu` to get a matching pair.
+**Borderless-table analog (page 17, the I'M SAFE checklist card): 0
+digit errors, both tiers.** Both correctly read "8 hours" and "24 hours"
+— the only two digit values on the card. Not a true ruled/borderless
+data-grid test since this document doesn't have one, but for what it's
+worth, label:value pairs on a bordered card came through clean.
 
-With that fixed, ran `path_b_docling.py` on `page30_dpi300_clean.png`:
-- Docling's own layout model (`docling-project/docling-layout-heron`,
-  ~170MB) downloaded and loaded fine.
-- Loading the TableFormer model next (`docling-project/docling-models`)
-  pushed container RAM from ~1.4GiB used to 2.4GiB used, free RAM down
-  to ~200MB, and the process was killed shortly after with **no
-  traceback** - then RAM was back to ~900MB used / 1.7GiB free
-  immediately after. Same silent-death-then-RAM-freed signature as the
-  PaddleOCR `chinese_cht` failure above.
+### 5. Images arrive at sane resolution — yes
 
-**This is the third independent OOM-pattern failure in this specific
-3.7GiB-RAM container** (PaddleOCR `chinese_cht`, this Docling run, and
-RapidOCR itself on the 300 DPI + skew combination - see Path A results).
-Did not retry with `do_table_structure=False` or a smaller/cropped
-image to isolate which model tipped it over - three failures against
-the same ~3.7GiB ceiling is enough to call this a container-sizing
-problem, not a per-tool one, and not worth burning more time
-re-attempting variations that likely hit the same wall.
+Verified in "Path A works end to end" above: embedded image is
+pixel-identical to the source PNG (`np.array_equal` → `True`), not
+resized, not recompressed, not enhanced.
 
-**Verdict on Path B (both MinerU and Docling): not evaluated on quality
-in this container.** MinerU wasn't attempted at all (pre-emptively
-stopped on model-size grounds, see above); Docling was attempted and
-hit a resource wall before producing a single table or docx. Neither
-result should be read as a quality judgment on MinerU or Docling
-themselves - both are credible tools; this container just cannot host
-them. Re-run on a machine with meaningfully more RAM (8GB+ headroom
-would be a reasonable first retry point, given Docling's two models
-alone pushed a 3.7GiB box to its knees before even reaching inference).
+### 6. Resource cost, measured
+
+- **Wall-clock**: 7.9-16.4s/page across all 12 samples (avg ~11.7s),
+  single-threaded on this container's 1 vCPU.
+- **Peak RSS**: ~1.56GB for one RapidOCR call on a 300 DPI photo-sim
+  image (`resource.getrusage(RUSAGE_CHILDREN).ru_maxrss` around a
+  subprocess call) — against the real 2048MiB container ceiling (see
+  next section), that's roughly 76% of the entire budget for one page,
+  processed one at a time via subprocess isolation in `run_path_a_eval.py`
+  specifically so a single OOM only loses one row.
+- **Output size, and a real bug fixed**: `path_a_searchable_pdf.py`'s
+  `doc.save()` call was not passing any compression flags — PyMuPDF
+  defaults to storing image streams **uncompressed**. A 300 DPI RGB
+  Letter page came out at ~25MB per PDF (almost exactly
+  2550x3300x3 bytes, i.e. genuinely zero compression), which would have
+  made all 6 clean-tier outputs alone ~150MB. Fixed by adding
+  `garbage=4, deflate=True, deflate_images=True` to the `save()` call —
+  cut every output to under 1.3MB (12 PDFs, ~13MB total) with **no
+  change** to visible pixels or extracted text (re-verified: pixel-
+  identical, search still finds known strings, same char count). This
+  is a real fix to ship, not a spike-only workaround — anyone using this
+  hand-rolled Path A pattern elsewhere would hit the same 25x bloat.
+
+### 7. Verdict
+
+**Path A is the right default for someone with photographed or scanned
+documents who needs to find/search/copy from them, and it holds up well
+in English even under combined realistic photo degradation** (rotation +
+perspective + lighting + blur + JPEG, all at once): digit accuracy stayed
+under 1.5% error across 6 varied pages, with 4 of 6 pages perfect in both
+tiers. The one clear failure mode is the classic "1" vs "l" (lowercase L)
+font-shape ambiguity — worth a human glance at any output that will be
+used for something exact (e.g. serial numbers, dates), but not a
+systemic problem. The other finding worth carrying forward: **the naive
+`doc.save()` bug that bloated outputs 25x had nothing to do with OCR
+accuracy and everything to do with an unset compression flag** — cheap to
+fix, easy to miss, and would matter a lot for actual deployment.
+
+**Biggest open question, not this run's to answer**: whether "skew hurts
+more than DPI" is a real, reproducible effect. This run's 2-condition
+scope can't isolate it; the previous claim (Chinese source) is suspected
+of being a metric artifact per the PR #58 review. A dedicated
+clean-vs-skew-only-vs-DPI-only comparison, ideally still hand-counted
+rather than back through a CER harness, would settle it.
+
+## Path B / D — handed off (not run in this container)
+
+Per the issue's split decision: this container has a real ~2048MiB RAM
+ceiling (see below) that MinerU (2.15GB of weights alone) and Docling
+(layout model + TableFormer) cannot fit in regardless of image size or
+page count — this was hit and confirmed in the earlier (superseded, non-
+English) attempt on this same issue. Path D was cut from this POC's
+scope entirely by the same decision. **Not attempted again here** —
+retrying would reproduce the same OOM, not produce a new data point.
+
+Local-machine next steps, unchanged from the split instructions:
+- **MinerU** (`mineru-3.4.4`) and **Docling** (`v2.115.0`) against the
+  same 12 images already committed here (`samples/rendered/`) — reuse,
+  don't regenerate, so results are comparable to this report.
+- The four questions Path B exists to answer: do merged cells survive
+  `MinerU HTML table -> pandoc -> docx`; ruled vs. borderless handling;
+  do images arrive at sane resolution in the `.docx`; digit accuracy on
+  a dense numeric page (page 49 here is the obvious candidate — it's the
+  most digit-dense of the six).
+- `path_b_docling.py` in this directory is a working starting point
+  (RapidOCR configured as its OCR backend instead of default EasyOCR,
+  to avoid a second torch-based OCR stack).
+- Optionally, also worth a run on a real box: `ocrmypdf` for Path A
+  (the tool anyone on a normal machine would reach for — see
+  "Environment notes", it couldn't be installed here) compared against
+  this hand-rolled PyMuPDF + RapidOCR route, to see whether the
+  container-forced approach cost anything.
+
+## Environment notes (read this before rerunning)
+
+This container has **no root/sudo/apt-get** access, and its real memory
+ceiling is smaller than `/proc/meminfo` reports.
+
+1. **`/proc/meminfo` over-reports by roughly 2x on this Fargate lane.**
+   Confirmed independently this run via the ECS task metadata endpoint —
+   the authoritative source:
+   ```sh
+   curl -sf "$ECS_CONTAINER_METADATA_URI_V4/task" | jq .Limits
+   # => {"CPU": 1, "Memory": 2048}
+   ```
+   against `/proc/meminfo`'s `MemTotal: 3.7Gi`. If
+   `$ECS_CONTAINER_METADATA_URI_V4` looks unset in your shell, read PID
+   1's environment instead of concluding it's absent:
+   `tr '\0' '\n' < /proc/1/environ | grep ECS_CONTAINER_METADATA_URI_V4`.
+   Do **not** use `cat /sys/fs/cgroup/memory.max` to check this — on
+   Fargate it reads back as unlimited (`9223372036854771712`) because
+   nothing inside the container enforces the cap; Fargate kills you at
+   the task level from outside, so that file will tell you that you have
+   infinite RAM right up until you don't.
+
+2. **Tesseract, Ghostscript, qpdf, poppler-utils are not installed and
+   cannot be installed here.** `ocrmypdf` (the obvious Path A tool)
+   shells out to all three and could not be used. Path A here is a
+   hand-rolled equivalent instead: PyMuPDF embeds the source image
+   unchanged, RapidOCR supplies the text, PyMuPDF places it as an
+   invisible text layer. Not a preference — the only option that runs
+   in this container. Stands as **the** Path A implementation here, not
+   a fallback; worth trying `ocrmypdf` for comparison on a normal box
+   (see "Path B / D — handed off").
+
+3. **opencv-python (any variant) fails to import** on this base image:
+   dynamically linked against `libxcb.so.1`, `libGL.so.1`,
+   `libglib-2.0.so.0`, `libgthread-2.0.so.0` and more X11/GL libs the
+   image doesn't ship, and apt can't install them without root. RapidOCR
+   pulls this in transitively.
+
+   Fix: `fetch_system_libs.sh` downloads the 8 missing shared libraries
+   directly from the public Debian pool (`deb.debian.org`) as plain
+   files — no root needed to fetch or unpack a `.deb` (it's just an `ar`
+   archive) — into `.rootless-libs/`. `run_with_libs.sh` wraps a command
+   with `LD_LIBRARY_PATH` pointed at that directory plus this venv's
+   `bin/` on `PATH`. Every script in this directory should be run
+   through it: `./run_with_libs.sh python3 <script>.py ...`
+
+   This is a workaround for *this specific container*, not a real fix —
+   if the base image ships `libgl1 libxcb1 libglib2.0-0` etc., this
+   whole step becomes unnecessary.
+
+4. **torch pulls CUDA wheels by default even with no GPU present** (only
+   relevant for the handed-off Path B / local run) — a plain
+   `pip install torch` downloads ~2.7GB of `nvidia-*` packages that can
+   never be used on a CPU-only container. Install from the CPU wheel
+   index instead: `pip install torch --index-url https://download.pytorch.org/whl/cpu`
 
 ## Files
 
-- `make_samples.py` — render source PDF pages to images + degradations
-- `eval_cer.py` — CER scoring (overall / digits / CJK / Latin) vs ground truth
+- `make_samples.py` — render source PDF pages to images + one photo-sim
+  degradation per page (see docstring for exact page/shape selection and
+  degradation parameters)
 - `path_a_searchable_pdf.py` — Path A pipeline
-- `run_path_a_eval.py` — Path A batch run + CER table
-- `fetch_system_libs.sh` / `run_with_libs.sh` — rootless opencv fix, see above
-- `samples/` — rendered images + ground truth text (small illustrative
-  PNGs only; the full source PDF is not committed — rerun `make_samples.py`
-  to regenerate, or fetch the URL above)
-- `out/` — pipeline outputs (PDFs, docx)
+- `_path_a_one.py` — single-image subprocess worker (isolation against
+  per-sample OOM, see "Environment notes")
+- `run_path_a_eval.py` — Path A batch run over all 12 samples, writes
+  timing CSV + per-sample OCR text
+- `path_b_docling.py` — Path B starting point for the handed-off local
+  run (not run in this container)
+- `fetch_system_libs.sh` / `run_with_libs.sh` — rootless opencv fix, see
+  "Environment notes"
+- `samples/rendered/` — the 12 committed images (6 pages x 2 tiers),
+  ground truth text per page, and per-sample OCR text output
+  (`page*_ocr.txt`) + timing (`path_a_results.csv`)
+- `out/path_a/` — the 12 committed Path A output PDFs

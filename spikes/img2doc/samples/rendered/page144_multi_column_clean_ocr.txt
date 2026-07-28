@@ -1,0 +1,102 @@
+AOA-See ANGLE OF ATTACK.
+CART-The engine and seats, attached by a struc-
+ture to wheels; sometimes referred to as the fuse-
+ARMThe horizontal distance in inches from the
+lage, cockpit, chaise, or airframe.
+reference datum line to the center of gravity of an
+item. Used in weight and loading calculations.
+CAVITATION-A condition that exists in a fluid
+pump when there is not enough pressure in the
+AROW The mnemonic aid to remember the
+reservoir to force fluid to the inlet of the pump
+certificates and documents required to be onboard
+The pump picks up air instead of fluid.
+an aircraft to determine airworthiness: Airworthi-
+ness certificate, Registration certificate, Operating
+CENTER OF GRAVITY (CG)The point at which
+limitations, Weight and balance data.
+an aircraft would balance if it were possible to
+suspend it at that point. It is the mass center of the
+ASOS-See AUTOMATED SURFACE OBSERV-
+aircraft, or the theoretical point at which the entire
+ING SYSTEM.
+weight of the PPC is assumed to be concentrated.
+ASPECT RATIOSpan of a wing divided by its
+It may be expressed in inches from the reference
+average chord.
+datum, or in percent of mean aerodynamic chord
+ASYMMETRICAL AIRFOILAn airfoil section
+(MAC). The location depends on the distribution
+that is not the same on both sides of the chord line.
+of weight in the aircraft.
+ATISSee AUTOMATIC TERMINAL INFORMA-
+CENTER OF LIFTThe location along the chord
+line of an airfoil at which all the lift forces pro-
+TION SERVICE
+duced by the airfoil are considered to be concen-
+AUTOMATED SURFACE OBSERVING SYS-
+trated.
+TEM (ASOS)Weather reporting system which
+CENTER OF PRESSURE (CP)The point along
+provides surface observations every minute via
+digitized voice broadcasts and printed reports.
+the wing chord line where lift is considered to be
+concentrated.
+AUTOMATED WEATHER OBSERVING SYSTEM
+(AWOS)Automated weather reporting system
+CENTRIFUGAL FORCEThe apparent force
+consisting of various sensors, a processor, a com-
+occurring in curvilinear motion acting to deflect
+puter-generated voice subsystem, and a transmitter
+objects outward from the axis of rotation. For
+to broadcast weather data.
+instance, when pulling out of a dive, it is the force
+pushing you down in your seat.
+AUTOMATIC TERMINAL INFORMATION SER-
+VICE (ATIS)The continuous broadcast (by ra-
+CENTRIPETAL FORCEThe force in curvilinear
+dio or telephone) of recorded noncontrol, essential
+motion acting toward the axis of rotation. For
+but routine, information in selected terminal areas.
+instance, when pulling out of a dive, it is the force
+that the seat exerts on the pilot to offset the cen-
+AVIATION MEDICAL EXAMINER (AME)A
+trifugal force.
+medical doctor authorized to perform aviation
+medical exams for aviators.
+CERTIFICATED FLIGHT INSTRUCTOR (CFI)-
+A flight instructor authorized by the FAA to
+BANK ATTITUDEThe angle of the lateral axis
+provide flight instruction in designated category of
+relative to the horizon.
+aircraft.
+BASE LEGA flight path at right angles to the
+CFI-See CERTIFIED FLIGHT INSTRUCTOR.
+landing runway off its approach end. The base leg
+normally extends from the downwind leg to the
+CFR-See CODE OF FEDERAL REGULATIONS.
+intersection of the extended runway centerline.
+CG-See CENTER OF GRAVITY.
+CAMBER-The curvature of a wing when look-
+CHECKLIST-A list of procedures that provides
+ing at a cross section. A wing has upper camber
+a logical and standardized method to operate a
+on its top surface and lower camber on its bottom
+particular make and model aircraft.
+surface.
+CHECKRIDEA practical test administered by
+CANOPY-The fabric body of a parachute.
+an FAA examiner or designated examiner for the
+CARBURETOR ICE-Ice that forms inside the car-
+purpose of issuing an FAA certificate or rating.
+buretor due to the temperature drop caused by the
+CHORD LINEAn imaginary straight line drawn
+vaporization of the fuel. Induction system icing
+through an airfoil from the leading edge to the
+is an operational hazard because it can cut off the
+trailing edge.
+flow of the fuel/air charge or vary the fuel/air ratio.
+CLASS A AIRSPACEAirspace from 18,000 feet
+MSL up to and including FL600, including the
+airspace overlying the waters within 12 NM of the
+G-2

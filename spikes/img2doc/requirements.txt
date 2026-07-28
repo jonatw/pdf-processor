@@ -1,19 +1,19 @@
-# Install torch/torchvision FIRST from the CPU wheel index, then the rest -
-# otherwise pip pulls CUDA build variants that download ~2.7GB of unusable
-# nvidia-*-cu* packages on a CPU-only container (see README "Environment
-# notes"). torchvision must come from the same index as torch or you hit
-# `RuntimeError: operator torchvision::nms does not exist` (ABI mismatch).
-#
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-#   pip install -r requirements.txt
-
-img2pdf
+# Path A (this container) needs only the five packages below.
 pymupdf==1.28.0
 pillow
 numpy
 rapidocr-onnxruntime==1.2.3
-python-Levenshtein
-docling==2.115.0
 
 # Also needs the rootless shared-library fix for opencv (fetch_system_libs.sh)
 # and every script must run through run_with_libs.sh - see README.
+
+# --- Path B (local machine only, NOT installable/runnable in this
+# container - see README "Path B - handed off"). Install torch/torchvision
+# FIRST from the CPU wheel index before this line, or pip pulls CUDA build
+# variants that download ~2.7GB of unusable nvidia-*-cu* packages on a
+# CPU-only box. torchvision must come from the same index as torch or you
+# hit `RuntimeError: operator torchvision::nms does not exist` (ABI
+# mismatch):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install docling==2.115.0 mineru==3.4.4
+docling==2.115.0

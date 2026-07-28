@@ -75,7 +75,14 @@ def image_to_searchable_pdf(image_path, pdf_path, dpi=300):
                 break
             fontsize *= 0.6
 
-    doc.save(pdf_path)
+    # deflate/deflate_images: fitz.Document.save() defaults to storing
+    # streams uncompressed. For a 300 DPI RGB page that's ~25MB per PDF -
+    # almost exactly the raw pixel size (2550x3300x3 bytes), i.e. no
+    # compression at all. garbage=4 additionally drops the now-unused
+    # original-resolution copy left behind by insert_textbox's shrink-to-fit
+    # retry loop. Together this took the clean-tier PDFs from ~25MB to
+    # under 1MB with no change to visible pixels or extracted text.
+    doc.save(pdf_path, garbage=4, deflate=True, deflate_images=True)
     doc.close()
     return len(result or [])
 

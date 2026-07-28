@@ -1,0 +1,102 @@
+G-2
+AOA—See ANGLE OF ATTACK.
+ARM—The horizontal distance in inches from the 
+reference datum line to the center of gravity of an 
+item. Used in weight and loading calculations.
+AROW— The mnemonic aid to remember the 
+certificates and documents required to be onboard 
+an aircraft to determine airworthiness: Airworthi­
+ness certificate, Registration certificate, Operating 
+limitations, Weight and balance data.
+ASOS—See AUTOMATED SURFACE OBSERV­
+ING SYSTEM.
+ASPECT RATIO—Span of a wing divided by its 
+average chord.
+ASYMMETRICAL AIRFOIL—An airfoil section 
+that is not the same on both sides of the chord line.
+ATIS—See AUTOMATIC TERMINAL INFORMA­
+TION SERVICE.
+AUTOMATED SURFACE OBSERVING SYS­
+TEM (ASOS)—Weather reporting system which 
+provides surface observations every minute via 
+digitized voice broadcasts and printed reports.
+AUTOMATED WEATHER OBSERVING SYSTEM 
+(AWOS)—Automated weather reporting system 
+consisting of various sensors, a processor, a com­
+puter-generated voice subsystem, and a transmitter 
+to broadcast weather data.
+AUTOMATIC TERMINAL INFORMATION SER­
+VICE (ATIS)—The continuous broadcast (by ra­
+dio or telephone) of recorded noncontrol, essential 
+but routine, information in selected terminal areas.
+AVIATION MEDICAL EXAMINER (AME)—A 
+medical doctor authorized to perform aviation 
+medical exams for aviators.
+BANK ATTITUDE—The angle of the lateral axis 
+relative to the horizon.
+BASE LEG—A flight path at right angles to the 
+landing runway off its approach end. The base leg 
+normally extends from the downwind leg to the 
+intersection of the extended runway centerline.
+CAMBER—The curvature of a wing when look­
+ing at a cross section. A wing has upper camber 
+on its top surface and lower camber on its bottom 
+surface.
+CANOPY—The fabric body of a parachute.
+CARBURETOR ICE—Ice that forms inside the car­
+buretor due to the temperature drop caused by the 
+vaporization of the fuel. Induction system icing 
+is an operational hazard because it can cut off the 
+flow of the fuel/air charge or vary the fuel/air ratio.
+CART—The engine and seats, attached by a struc­
+ture to wheels; sometimes referred to as the fuse­
+lage, cockpit, chaise, or airframe.
+CAVITATION—A condition that exists in a fluid 
+pump when there is not enough pressure in the 
+reservoir to force fluid to the inlet of the pump. 
+The pump picks up air instead of fluid.
+CENTER OF GRAVITY (CG)—The point at which 
+an aircraft would balance if it were possible to 
+suspend it at that point. It is the mass center of the 
+aircraft, or the theoretical point at which the entire 
+weight of the PPC is assumed to be concentrated. 
+It may be expressed in inches from the reference 
+datum, or in percent of mean aerodynamic chord 
+(MAC). The location depends on the distribution 
+of weight in the aircraft.
+CENTER OF LIFT—The location along the chord 
+line of an airfoil at which all the lift forces pro­
+duced by the airfoil are considered to be concen­
+trated.
+CENTER OF PRESSURE (CP)—The point along 
+the wing chord line where lift is considered to be 
+concentrated.
+CENTRIFUGAL FORCE—The apparent force 
+occurring in curvilinear motion acting to deflect 
+objects outward from the axis of rotation. For 
+instance, when pulling out of a dive, it is the force 
+pushing you down in your seat.
+CENTRIPETAL FORCE—The force in curvilinear 
+motion acting toward the axis of rotation. For 
+instance, when pulling out of a dive, it is the force 
+that the seat exerts on the pilot to offset the cen­
+trifugal force.
+CERTIFICATED FLIGHT INSTRUCTOR (CFI)—
+A flight instructor authorized by the FAA to 
+provide flight instruction in designated category of 
+aircraft.
+CFI—See CERTIFIED FLIGHT INSTRUCTOR.
+CFR—See CODE OF FEDERAL REGULATIONS.
+CG—See CENTER OF GRAVITY.
+CHECKLIST—A list of procedures that provides 
+a logical and standardized method to operate a 
+particular make and model aircraft.
+CHECKRIDE—A practical test administered by 
+an FAA examiner or designated examiner for the 
+purpose of issuing an FAA certificate or rating.
+CHORD LINE—An imaginary straight line drawn 
+through an airfoil from the leading edge to the 
+trailing edge.
+CLASS A AIRSPACE—Airspace from 18,000 feet 
+MSL up to and including FL600, including the 
+airspace overlying the waters within 12 NM of the 

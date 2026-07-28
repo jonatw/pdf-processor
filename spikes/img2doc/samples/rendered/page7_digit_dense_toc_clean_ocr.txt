@@ -1,0 +1,159 @@
+Rejected Takeoff/Engine Failure..
+..7-7
+CHAPTER 10Airport Traffic Patterns
+Runway Surface and Gradient
+..7-8
+Airport Traffic Patterns and
+.7-8
+Takeoff Performance
+Operations ....
+10-1
+Noise Abatement
+.7-9
+Standard Airport Traffic Patterns .
+.10-2
+CHAPTER 8Airspace Classification
+CHAPTER 11—Approaches and Landings
+and Requirements
+Normal Approach and Landing...
+.11-1
+Controlled Airspace
+.8-1
+Base Leg....
+11-1
+Class A Airspace .
+...8-1
+Final Approach.
+11-2
+Class B Airspace ..
+...8-2
+Estimating Height and Movement
+11-3
+Class C Airspace
+..8-3
+Roundout.
+11-3
+Class D Airspace
+.8-3
+Wing Control.
+.11-4
+Class E Airspace
+.8-3
+Touchdown...
+.11-5
+Uncontrolled Airspace: Class G
+After-Landing Roll....
+11-6
+Airspace ...
+8-4
+Stabilized Approach Concept.
+11-7
+Special Use Airspace..
+.8-4
+Go-Arounds (Rejected Landings) ..
+.11-8
+Prohibited Areas..
+.8-4
+Turbulent Air Approach and Landing .. 1-.
+Restricted Areas ..
+..8-4
+Emergency Approach and Landings
+Warning Areas ...
+...8-4
+(Simulated)..
+11-9
+Military Operation Areas
+...8-5
+Faulty Approaches and Landings..
+11-11
+Alert Areas .
+.8-5
+Low Final Approach..
+ 11-11
+Controlled Firing Areas
+.8-5
+High Final Approach.
+11-11
+Other Airspace Areas ..
+.8-5
+Use of Power...
+11-11
+High Roundout..
+..8-5
+Airport Advisory Areas .
+11-11
+Bouncing During Touchdown
+11-12
+Military Training Routes.
+.8-5
+Hard Landing ....
+.11-12
+Temporary Flight Restrictions
+.8-5
+Wing Blowing Over After Touchdown ... 11-13
+Parachute Jump Areas ..
+.8-5
+Published VFR Routes ...
+..8-6
+CHAPTER 12Night, Abnormal, and
+.8-6
+Terminal Radar Service Areas..
+Emergency Procedures
+National Security Areas ..
+.8-6
+Night Operations and the Powered
+Flight Over Charted U.S. Wildlife Refuges,
+Parachute...
+12-1
+Parks, and Forest Service Areas.
+.8-6
+Emergency Situations
+.12-1
+Powered Parachute Operations
+.8-6
+Accidents...
+.12-2
+PPC and Air Traffic Control.
+.8-6
+Potential Hazards of the Standing PPC
+12-2
+Restricted Lines During the Takeoff Roll
+Navigating the Airspace...
+...8-7
+...12-3
+Entangled or Embedded Lines ...
+12-3
+CHAPTER 9 Ground Reference
+Lines Caught Under a Wheel
+12-3
+Maneuvers
+A Wing Wall.
+.12-3
+Purpose and Scope ....
+.9-1
+A Wing Lock-Out..
+.12-3
+Maneuvering by Reference to
+Wing Not Centered Overhead.
+12-4
+Ground Objects
+.9-1
+The Cart Turns Over (Roll-Over)
+12-4
+Drift and Ground Track Control
+.9-2
+Engine Failure on Climbout.
+12-5
+Rectangular Course ...
+.9-4
+Engine Failure in Flight ...
+.12-6
+S-Turns Across a Road.
+..9-6
+Engine Failure in a PPCL.
+.12-6
+Turns Around a Point
+.9-8
+In-Flight Fire ...
+.12-7
+vii

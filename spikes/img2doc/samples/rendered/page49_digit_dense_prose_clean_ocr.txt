@@ -1,0 +1,95 @@
+The cylinders have steel cylinder walls that expand
+prevent this, slowly add power well before you get
+close to the ground where you will need power. This
+quickly. If an engine is revved too quickly during
+will give the system a chance to gradually open the
+takeoff before warming up, a lot of heat is generated
+thermostat and warm up the radiator water.
+on top of the piston. That quickly expands the piston,
+Just as it takes a while for the engine crankcase and
+which can then seize in the cylinder. A piston seizure
+bearings to warm up, it also takes those steel parts a
+will stop the engine abruptly.
+long time to cool down. If you land, refuel and want
+The second area of concern is lower in the engine
+to take off again quickly, there is no need to warm up
+around the engine crankshaft. This is an area where
+again for 5 minutes. The lower end of the engine will
+things may get too loose with heat, rather than seizing
+stay warmed up after being shut down for short peri-
+up. Additionally, the crankcase has steel bearings set
+ods. An engine restart is an example where it would
+into the aluminum which need to expand together or
+be appropriate to warm the engine up until the gauges
+the bearings could slip.
+reach operating temperatures. The lower end of the
+engine is warm and now you only need to be con-
+Many two-stroke engines have steel bearings that nor-
+cerned with preventing the pistons from seizing.
+mally hug the walls of the aluminum engine case. The
+crank spins within the donuts of those steel bearings
+Four-Stroke Engine Warming
+If you heat up the engine two quickly, the aluminum
+case will out-expand those steel bearings and the
+A four-stroke engine must also be warmed up. The
+crank will cause the bearings to start spinning along
+four-stroke engine has a pressurized oil system that
+with it. If those steel bearings start spinning, they can
+provides more uniform engine temperatures to all its
+ruin the soft aluminum walls of the case, which is
+components. You can apply takeoff power as soon
+very expensive.
+as the water, cylinder head temperature (CHT), oil
+temperatures and oil pressure are within the manu-
+If heat is slowly added to an engine, all the parts will
+facturer's recommended tolerances for takeoff power
+expand more evenly. This is done through a proper
+applications.
+best warmed up by running the engine at a set RPM
+Gearboxes
+for a set amount of time. Follow the instructions in
+your POH; however, a good rule of thumb is to ini-
+Gearboxes are used on all powered parachute recip-
+tially start the engine at idle RPM, get it operating
+rocating engines to take the rotational output of an
+smoothly, and then warm the engine at 3,000 RPM
+internal combustion engine which is turning at a very
+for 5 minutes.
+high RPM and convert it to a slower (and more useful)
+RPM to turn the propeller. Gearboxes come in differ-
+Once the engine is warmed up and the powered para-
+ent gear ratios depending on the output speed of the
+chute is flying, it is still possible to cool down the
+engine and the needed propeller turning speeds.
+engine too much. This will happen when the engine is
+idled back for an extended period oftime. Even though
+A typical two-stroke RPM reduction is from 6,500
+the engine is running, it is not generating as much heat
+engine RPM with a 3.47 to 1 reduction, resulting in
+as the cooling system is efficiently dumping into the
+1,873 propeller RPM. A typical four-stroke RPM re-
+atmosphere. An immediate power application with a
+duction is from 5,500 engine RPM with a 2.43 to 1
+cooled engine can seize the engine just as if the engine
+reduction, resulting in 2,263 propeller RPM.
+had not been warmed in the first place.
+A gearbox is a simple device that bolts directly to the
+In water-cooled engines, on a long descent at idle, the
+engine and in turn has the propeller bolted directly
+coolant cools until the thermostat closes and the en-
+to it.
+gine is not circulating the radiator fluid through the
+A two-cycle engine gearbox is kept lubricated with
+engine. The engine temperature remains at this ther-
+its own built-in reservoir of heavy gearbox oil. The
+mostat closed temperature while the radiator coolant
+reservoir is actually part of the gearbox case itself.
+continues to cool further. If full throttle is applied, the
+The gearbox oil has to be changed periodically since
+thermostat can open allowing a blast of coolant into
+the meshing of the gears will cause them to wear and
+the warm engine. The piston is expanding because of
+will deposit steel filings into the oil. If the oil is not
+the added heat and the cylinder is cooling with the
+cold radiator water resulting in a piston seizure. To
+4-5

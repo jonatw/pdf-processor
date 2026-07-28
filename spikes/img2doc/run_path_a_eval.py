@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Run Path A over every rendered sample and score CER against ground truth.
-Produces samples/rendered/path_a_results.csv - the DPI/skew/perspective
-accuracy table the issue asks for (criterion 3).
+"""Run Path A over every rendered sample (Tier 1 clean + Tier 2 photo-sim).
+
+No CER harness - per the current spec this is a 6-page POC scored by hand,
+not a benchmark. This script just runs the pipeline and saves each page's
+extracted OCR text next to its ground truth, so the two can be read side
+by side and digit errors counted by eye. Also records wall-clock per page
+and whether a run OOM'd (subprocess isolation, see _path_a_one.py).
 """
 import csv
 import glob
@@ -9,8 +13,6 @@ import os
 import subprocess
 import sys
 import time
-
-from eval_cer import score
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RENDERED = os.path.join(HERE, "samples", "rendered")
@@ -20,53 +22,43 @@ OUT_DIR = os.path.join(HERE, "out", "path_a")
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    images = sorted(glob.glob(os.path.join(RENDERED, "page*_clean.png")) +
-                     glob.glob(os.path.join(RENDERED, "page*_skew3deg.png")) +
-                     glob.glob(os.path.join(RENDERED, "page*_perspective.png")))
+    images = sorted(
+        glob.glob(os.path.join(RENDERED, "page*_clean.png")) +
+        glob.glob(os.path.join(RENDERED, "page*_photosim.jpg"))
+    )
 
     csv_path = os.path.join(RENDERED, "path_a_results.csv")
-    fieldnames = ["page", "dpi", "variant", "seconds", "overall_cer",
-                  "digits_cer", "cjk_cer", "latin_cer", "error"]
+    fieldnames = ["page", "shape", "tier", "dpi", "seconds", "ocr_boxes",
+                  "extracted_chars", "extracted_text_file", "error"]
 
-    # Resumable: append if the CSV already has rows for a given image (in
-    # case an earlier run crashed partway - a repeated CPU-only OOM has
-    # already been observed once in this container with a different tool).
-    done = set()
-    write_header = not os.path.exists(csv_path)
-    if not write_header:
-        with open(csv_path, newline="") as f:
-            for r in csv.DictReader(f):
-                done.add((r["page"], r["dpi"], r["variant"]))
-
-    with open(csv_path, "a", newline="") as f:
+    with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        if write_header:
-            writer.writeheader()
+        writer.writeheader()
 
         for image_path in images:
-            base = os.path.basename(image_path).replace(".png", "")
-            parts = base.split("_")
+            base = os.path.basename(image_path)
+            base_noext = base.rsplit(".", 1)[0]
+            parts = base_noext.split("_")
             page_idx = parts[0].replace("page", "")
-            dpi = int(parts[1].replace("dpi", ""))
-            variant = "_".join(parts[2:])
+            tier = "clean" if base_noext.endswith("_clean") else "photosim"
+            shape = "_".join(parts[1:-1])
 
-            if (page_idx, str(dpi), variant) in done:
-                print(f"skip (already done) {base}", flush=True)
-                continue
-
-            gt_path = os.path.join(RENDERED, f"page{page_idx}_ground_truth.txt")
-            with open(gt_path, encoding="utf-8") as gf:
-                reference = gf.read()
-
-            pdf_out = os.path.join(OUT_DIR, f"{base}.pdf")
-            row = {"page": page_idx, "dpi": dpi, "variant": variant, "error": ""}
+            dpi = 300
+            pdf_out = os.path.join(OUT_DIR, f"{base_noext}.pdf")
+            text_out = os.path.join(RENDERED, f"{base_noext}_ocr.txt")
+            row = {"page": page_idx, "shape": shape, "tier": tier, "dpi": dpi, "error": ""}
 
             try:
                 t0 = time.time()
-                # Subprocess isolation: RapidOCR has been observed to die
-                # (OOM, no traceback) on one specific sample in this
-                # container. Running each image in its own process means
-                # that loses one row, not the whole batch.
+                # Subprocess isolation: this container has a real 2048MiB
+                # ceiling (confirmed via ECS task metadata, not /proc/meminfo
+                # which over-reports ~2x here) and RapidOCR has previously
+                # OOM'd on specific samples. One process per image means an
+                # OOM loses one row, not the whole batch, and lets us retry
+                # a single condition at a lower DPI per the redo ruling
+                # ("attempt Tier 2 at 300 DPI once; if it OOMs, drop that
+                # tier to 150 DPI, record the drop, continue - one retry,
+                # not a sweep").
                 proc = subprocess.run(
                     [sys.executable, "_path_a_one.py", image_path, pdf_out, str(dpi)],
                     cwd=HERE, capture_output=True, text=True, encoding="utf-8",
@@ -75,15 +67,16 @@ def main():
                 elapsed = time.time() - t0
 
                 if proc.returncode != 0:
-                    row["error"] = f"subprocess exit {proc.returncode}: {proc.stderr[-500:]}"
+                    row["error"] = f"subprocess exit {proc.returncode}: {proc.stderr[-800:]}"
+                    row["seconds"] = round(elapsed, 2)
                 else:
-                    result = score(proc.stdout, reference)
+                    text = proc.stdout
+                    with open(text_out, "w", encoding="utf-8") as tf:
+                        tf.write(text)
                     row.update({
                         "seconds": round(elapsed, 2),
-                        "overall_cer": result["overall_cer"],
-                        "digits_cer": result["digits_cer"],
-                        "cjk_cer": result["cjk_cer"],
-                        "latin_cer": result["latin_cer"],
+                        "extracted_chars": len(text),
+                        "extracted_text_file": os.path.basename(text_out),
                     })
             except subprocess.TimeoutExpired:
                 row["error"] = "timeout after 180s"
