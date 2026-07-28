@@ -1,0 +1,17 @@
+# Full sample battery (18 rendered images + 16 output PDFs, ~160MB) is
+# reproducible via make_samples.py / run_path_a_eval.py and not committed.
+# One small illustrative pair is kept out of each (see README).
+samples/_source_pdfs/
+samples/rendered/*.png
+!samples/rendered/page30_dpi72_clean.png
+out/path_a/*.pdf
+!out/path_a/page30_dpi72_clean.pdf
+out/path_b/*.docx
+
+# Rootless shared-library workaround (see fetch_system_libs.sh) - fetched
+# from the public Debian pool at spike time, not project source.
+.rootless-libs/
+
+.venv/
+__pycache__/
+*.pyc
