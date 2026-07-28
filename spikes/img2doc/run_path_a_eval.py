@@ -28,7 +28,7 @@ def main():
     )
 
     csv_path = os.path.join(RENDERED, "path_a_results.csv")
-    fieldnames = ["page", "shape", "tier", "dpi", "seconds", "ocr_boxes",
+    fieldnames = ["page", "shape", "tier", "dpi", "seconds",
                   "extracted_chars", "extracted_text_file", "error"]
 
     with open(csv_path, "w", newline="") as f:
