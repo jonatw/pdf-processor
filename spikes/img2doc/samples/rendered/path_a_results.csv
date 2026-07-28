@@ -1,0 +1,13 @@
+page,shape,tier,dpi,seconds,extracted_chars,extracted_text_file,error
+144,multi_column,clean,300,14.72,4195,page144_multi_column_clean_ocr.txt,
+144,multi_column,photosim,300,15.99,4189,page144_multi_column_photosim_ocr.txt,
+17,borderless_table_analog,clean,300,7.78,944,page17_borderless_table_analog_clean_ocr.txt,
+17,borderless_table_analog,photosim,300,9.35,1045,page17_borderless_table_analog_photosim_ocr.txt,
+23,diagram,clean,300,9.81,2339,page23_diagram_clean_ocr.txt,
+23,diagram,photosim,300,11.39,2316,page23_diagram_photosim_ocr.txt,
+49,digit_dense_prose,clean,300,13.66,4661,page49_digit_dense_prose_clean_ocr.txt,
+49,digit_dense_prose,photosim,300,16.05,4756,page49_digit_dense_prose_photosim_ocr.txt,
+7,digit_dense_toc,clean,300,10.62,2529,page7_digit_dense_toc_clean_ocr.txt,
+7,digit_dense_toc,photosim,300,10.66,2534,page7_digit_dense_toc_photosim_ocr.txt,
+9,photo,clean,300,9.94,2187,page9_photo_clean_ocr.txt,
+9,photo,photosim,300,11.63,2134,page9_photo_photosim_ocr.txt,

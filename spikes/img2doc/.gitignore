@@ -1,0 +1,20 @@
+# Source PDF (63MB) is fixture prep, not part of the deliverable - the
+# converter under test never reads it (see make_samples.py docstring).
+# Public domain (17 U.S.C. Sec 105) and reproducible from the URL in the
+# README, so not committed. All 12 derived sample images + 12 Path A
+# output PDFs ARE committed (~27MB total, all under 4MB each after the
+# doc.save(deflate=True) fix) - that's the actual 12-images-and-outputs
+# deliverable the issue asks for.
+samples/_source_pdfs/
+
+# OCR text dumps (path_a_*_ocr.txt) and path_a_results.csv are also
+# committed - small text files, and they're what the digit-error report
+# was read from.
+
+# Rootless shared-library workaround (see fetch_system_libs.sh) - fetched
+# from the public Debian pool at spike time, not project source.
+.rootless-libs/
+
+.venv/
+__pycache__/
+*.pyc

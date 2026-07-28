@@ -1,0 +1,12 @@
+samples/rendered/page144_multi_column_clean.png
+samples/rendered/page144_multi_column_photosim.jpg
+samples/rendered/page17_borderless_table_analog_clean.png
+samples/rendered/page17_borderless_table_analog_photosim.jpg
+samples/rendered/page23_diagram_clean.png
+samples/rendered/page23_diagram_photosim.jpg
+samples/rendered/page49_digit_dense_prose_clean.png
+samples/rendered/page49_digit_dense_prose_photosim.jpg
+samples/rendered/page7_digit_dense_toc_clean.png
+samples/rendered/page7_digit_dense_toc_photosim.jpg
+samples/rendered/page9_photo_clean.png
+samples/rendered/page9_photo_photosim.jpg

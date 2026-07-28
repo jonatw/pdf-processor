@@ -1,0 +1,45 @@
+2-5
+Figure 2-9. PPC wing flexibility in flight. 
+The lift equation.
+Figure 2-11. The lift equation.
+Figure 2-10. Level flight forces.
+	 3.	The sum of all moments equals zero.
+THRUST – the forward force produced by a power­
+plant/propeller as it forces a mass of air to the rear (usu­
+ally said to act parallel to the longitudinal axis).	 
+	
+	
+	
+vs.
+DRAG – the aerodynamic force acting on the airfoil 
+lines and cart in the same plane and in the same direc­
+tion as the relative wind.
+LIFT – the aerodynamic force caused by air flowing 
+over the wing that is perpendicular to the relative 
+wind.
+	
+	
+	
+vs.
+WEIGHT – the force of gravity acting upon a body.
+Lift
+Lift opposes the downward force of weight and is pro­
+duced by the dynamic effects of the surrounding air­
+stream acting on the wing. Lift acts perpendicular to 
+the flight path through the wing’s center of lift. There 
+is a mathematical relationship between lift, angle of 
+attack, airspeed, altitude, and the size of the wing. In 
+the lift equation, these factors correspond to the terms 
+coefficient of lift, velocity, air density, and wing sur­
+face area. The relationship is expressed in Figure 2-11.
+This shows that for lift to increase, one or more of the 
+factors on the other side of the equation must increase. 
+Lift is proportional to the square of the velocity, or 
+airspeed, therefore, doubling airspeed quadruples the 
+amount of lift if everything else remains the same. 
+Small changes in airspeed create larger changes in 
+lift. Likewise, if other factors remain the same while 
+the coefficient of lift increases, lift also will increase. 
+The coefficient of lift goes up as the angle of attack 
+is increased. As air density increases, lift increases. 
+However, you will usually be more concerned with 

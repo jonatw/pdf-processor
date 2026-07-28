@@ -1,0 +1,115 @@
+LevelFlightForceVectors
+Drag
+Normal
+gliding flight
+Resultant
+force
+Lift
+Centerof lift
+Chord
+line
+PPCwingflex
+Angle of
+withpilot input
+attack
+similarto
+airplane flap
+Relativewind
+pilot input
+Flight path
+Figure2-9.PPCwingflexibilityinflight.
+Relativewind
+3. The sum of all moments equals zero.
+THRUST - the forward force produced by a
+power-
+plant/propeller as it forces a mass of
+air to the rear (usu-
+ally said to act parallel to the
+longitudinal axis).
+vs.
+Thrustvector-
+DRAG - the aerodynamic force acting on
+the airfoil
+lines and cart in the same plane and in
+the same direc-
+tion as the relative
+wind.
+Resultant
+Weight
+force
+LIFT - the aerodynamic force caused by
+air flowing
+over the wing that is perpendicular
+to the relative
+wind.
+Thrustcountersdrag
+vs.
+WEIGHT - the force of gravity
+acting upon a body.
+Figure2-10.Levelflightforce
+s.
+Lift
+L=C1V2号s
+Lift opposes the downward force of
+weight and is pro-
+duced by the dynamic effects of
+the surrounding air-
+stream acting on the wing. Lift
+acts perpendicular to
+L = Lift
+the flight path through the
+wing's center of lift. There
+CL =Coefficient of
+lift
+is a mathematical relationship
+between lift, angle of
+(This dimensionless number
+is the
+attack, airspeed, altitude, and
+the size of the wing. In
+ratio of lift pressure to
+dynamic
+the lift equation, these factors
+correspond to the terms
+pressure and area. It is
+specific to
+coefficient of lift, velocity, air
+density, and wing sur-
+a particular airfoil shape,
+and
+face area. The relationship is
+expressed in Figure 2-11.
+below the stall,it is
+proportional to
+This shows that for lift to
+increase, one or more of the
+angle of attack.)
+factors on the other side of the
+equation must increase.
+V=Velocity (Feet per
+second)
+Lift is proportional to the
+square of the velocity, or
+p=Airdensity (Slugs per
+cubic foot)
+airspeed, therefore, doubling
+airspeed quadruples the
+amount of lift if everything
+else remains the same.
+S=Wing surface area (Square
+feet)
+Small changes in airspeed
+create larger changes in
+lift. Likewise, if other
+factors remain the same while
+Figure2-11.The lift
+equation
+the coefficient of lift increases, lift also will
+increase.
+The coefficient of lift goes
+up as the angle of attack
+is increased. As air density
+increases, lift increases.
+However, you will usually be
+more concerned with
+2-5
