@@ -157,7 +157,16 @@ stayed under 1.5% error, and four of six pages (17, 23, 49, 144) had
 | 9 (photo) | photosim | 1 (+1 unverifiable) | `Oct. 1, 1964` → `Oct.l,1964` — same "1"→"l" confusion. Also one spurious `-10m` token inside the tiny patent-diagram artwork on this page, too small at this resolution to confirm against the source either way — flagged, not counted |
 | 7 (toc) | clean | 1 | one page-reference digit off by a single token out of 151 on this page; not chased further given the rate (0.7%) |
 | 7 (toc) | photosim | 0 | exact multiset match, 151/151 |
-| 17, 23, 49, 144 | both | 0 | exact multiset match every time |
+| 17, 49, 144 | both | 0 | exact multiset match every time |
+| 23 (diagram) | both | 0 | clean tier is an exact match; the photo-sim tier adds two spurious tokens (`1`, `2`) read out of the lift-equation figure — see the limitation note below, not scored |
+
+**Reproducing this diff**: page 9's ground truth contains the caption
+"Figure 1-1. The evolution of powered parachutes." **five times** — the
+born-digital text layer repeats it once per sub-figure — while the OCR
+output reads the one visible caption once. A raw multiset diff of that
+page therefore shows ~8 "missing" `1` tokens in both tiers. Those are a
+ground-truth text-layer artifact, not OCR misses; checked by eye against
+the rendered page and not scored either way.
 
 **Worst example**: the "1" / "l" (lowercase L) confusion on page 9 — the
 single most common OCR ambiguity class in Latin-script fonts, and it's
