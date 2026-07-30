@@ -1,13 +1,11 @@
 // vite.config.js
 import { defineConfig } from 'vite'
-import { resolve } from 'path'
 import { execSync } from 'child_process'
 
 const gitHash = execSync('git rev-parse --short HEAD').toString().trim()
 
 export default defineConfig({
   base: '/pdf-processor/',
-  root: resolve(__dirname, '.'),
   define: {
     __GIT_HASH__: JSON.stringify(gitHash),
   },
@@ -19,9 +17,18 @@ export default defineConfig({
     },
   },
   build: {
-    minify: 'esbuild', // Use esbuild for minification (default)
-    esbuild: {
-      drop: ['console', 'debugger'], // Remove all console.* and debugger statements
+    // Vite 8 default minifier (Oxc/Rolldown). Drop options moved from
+    // esbuild.drop to rolldownOptions.output.minify.compress per
+    // https://vite.dev/guide/migration.html
+    rolldownOptions: {
+      output: {
+        minify: {
+          compress: {
+            dropConsole: true, // Remove all console.* statements
+            dropDebugger: true, // Remove all debugger statements
+          },
+        },
+      },
     },
     sourcemap: false, // Disable source maps in production
   },
