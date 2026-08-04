@@ -44,11 +44,28 @@ jobs:
         # something left to wait for.
         #
         # Trade-off accepted: a FAILING check no longer produces a red run *in this
-        # workflow*. The signal is not lost -- the CI workflow itself still goes red and
-        # still fires its event; only the messenger changes. Auto-merge never fires and
-        # the PR stays open.
-        # (close-stale-prs.yml eventually GCs it -- stale-days 21 + response-days 7 = 28
-        # days -- but that is garbage collection, not a failure signal, and Dependabot
-        # reopens the same bump next round anyway. Do not read it as a safety net.)
+        # workflow*. Auto-merge never fires and the PR sits open.
+        #
+        # !! Do NOT write that off as "the signal just moves to the test run". The first
+        # version of this comment said exactly that and it was wrong in the way that
+        # matters. The CI workflow does go red and GitHub does emit the `workflow_run`
+        # event, but the fleet notifier drops it: gh_events only pushes a `workflow_run`
+        # failure when `head_branch == "main"`, and a Dependabot PR lives on
+        # `dependabot/*`. So today NOTHING actively tells anyone. Evidence and fix:
+        # openab-infra#359 (3 real failures on dependabot branches in this fleet, 0
+        # pushed) and openab-infra PR 361, still open as of 2026-08-04.
+        #
+        # Worth knowing: the poll loop this replaced was NOT the safety net either -- its
+        # red run was also on a `dependabot/*` branch and was dropped by the same filter.
+        # Poll and `--auto` are equivalent for notification; the poll just also burned
+        # 30 runner-minutes per PR. Removing it did not cost a signal that existed.
+        #
+        # The real fix is a scheduled watchdog that sweeps open Dependabot PRs and goes
+        # red on its own -- tracked in #74 (and #75 for how close-stale-prs erases that signal at day 28).
+        #
+        # (close-stale-prs.yml eventually GCs a stuck PR -- stale-days 21 +
+        # response-days 7 = 28 days -- but that is garbage collection, not a failure
+        # signal, and Dependabot reopens the same bump next round anyway. Do not read it
+        # as a safety net.)
         #
         run: gh pr merge "$PR" -R "$GITHUB_REPOSITORY" --squash --auto
