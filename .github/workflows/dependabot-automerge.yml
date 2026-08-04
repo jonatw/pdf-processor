@@ -9,24 +9,43 @@ jobs:
   automerge:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # One API call now, not a 30-minute poll.
+    timeout-minutes: 5
     steps:
       - uses: dependabot/fetch-metadata@v3
         id: meta
-      - name: Merge after CI passes (patch/minor)
+      - name: Enable auto-merge (patch/minor)
         if: steps.meta.outputs.update-type != 'version-update:semver-major'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
-          CHECK: build
-        run: |
-          for i in $(seq 1 60); do
-            st=$(gh pr checks "$PR" -R "$GITHUB_REPOSITORY" --json name,state \
-                 -q ".[] | select(.name==\"$CHECK\") | .state" | head -1)
-            case "$st" in
-              SUCCESS) exec gh pr merge "$PR" -R "$GITHUB_REPOSITORY" --squash --auto ;;
-              FAILURE|ERROR|CANCELLED) echo "check $st — not merging"; exit 1 ;;
-            esac
-            sleep 30
-          done
-          echo "timed out waiting for $CHECK"; exit 1
+        # Renamed from "Merge after CI passes": this step does not wait for anything.
+        # `--auto` hands enforcement to GitHub, which gates on every required check plus
+        # the approval -- so the poll that used to live here added no safety on top of
+        # that, while holding a hosted runner open for up to 30 minutes per PR to watch
+        # something GitHub watches for free.
+        #
+        # !! That equivalence holds ONLY where branch protection actually requires the
+        # check. Before copying this file to another repo, read its protection first:
+        #     gh api repos/OWNER/REPO/branches/main/protection --jq .required_status_checks
+        # A repo with `required_status_checks: null` and only a review requirement merges
+        # the instant someone approves -- red CI included. There the poll loop is the only
+        # gate and removing it is a regression, not a cleanup. That was literally the case
+        # in the sibling repo until its `unittest` context was made required on
+        # 2026-08-04; this comment exists so the next person checks instead of assuming.
+        #
+        # Calling immediately also avoids the `enablePullRequestAutoMerge`
+        # "Pull request is in clean status" failure -- but the load-bearing reason is not
+        # "checks are still pending", it is that a Dependabot PR here is BLOCKED on the
+        # required approving review from the moment it opens, so auto-merge always has
+        # something left to wait for.
+        #
+        # Trade-off accepted: a FAILING check no longer produces a red run *in this
+        # workflow*. The signal is not lost -- the CI workflow itself still goes red and
+        # still fires its event; only the messenger changes. Auto-merge never fires and
+        # the PR stays open.
+        # (close-stale-prs.yml eventually GCs it -- stale-days 21 + response-days 7 = 28
+        # days -- but that is garbage collection, not a failure signal, and Dependabot
+        # reopens the same bump next round anyway. Do not read it as a safety net.)
+        #
+        run: gh pr merge "$PR" -R "$GITHUB_REPOSITORY" --squash --auto
