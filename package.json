@@ -18,7 +18,7 @@
     "verify-preview": "node scripts/verify-preview.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "pyodide": "314.0.2",
     "sass": "^1.102.0",
     "vite": "^8.2.0"
