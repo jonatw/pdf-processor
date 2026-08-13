@@ -2,16 +2,26 @@
 // against the WASM wheel version pinned in pyodide-versions.json. These used to be kept
 // in sync by update-submodule.yml's self-heal step (retired in #27) — nothing replaced
 // that signal, so a PyMuPDF bump on the upstream side can silently outrun the wheel this
-// site actually ships. Runs on every `npm run build` (prebuild), so it fires both in PR
-// CI (against the pinned submodule) and at deploy time (against whatever
-// `git submodule update --remote` just fetched).
-import { readFileSync } from 'fs';
+// site actually ships. Invoked from deploy.yml, after `git submodule update --remote`
+// and before the Vite build — not wired into the shared `prebuild` hook, since today's
+// drift is real and that would fail every PR's `build`/`e2e` required checks, not just
+// the deploy that's actually shipping the mismatch. See issue #78.
+import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const requirementsPath = resolve(__dirname, '../public/python_core/requirements.txt');
 const versionsPath = resolve(__dirname, '../pyodide-versions.json');
+
+if (!existsSync(requirementsPath)) {
+  console.error(`check-wheel-drift: ${requirementsPath} not found — is the python_core submodule checked out?`);
+  process.exit(1);
+}
+if (!existsSync(versionsPath)) {
+  console.error(`check-wheel-drift: ${versionsPath} not found.`);
+  process.exit(1);
+}
 
 const requirements = readFileSync(requirementsPath, 'utf8');
 const match = requirements.match(/^PyMuPDF==([\d.]+)/m);
