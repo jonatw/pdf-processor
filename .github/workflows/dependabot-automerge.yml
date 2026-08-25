@@ -47,21 +47,43 @@ jobs:
         # workflow*. Auto-merge never fires and the PR sits open.
         #
         # !! Do NOT write that off as "the signal just moves to the test run". The first
-        # version of this comment said exactly that and it was wrong in the way that
-        # matters. The CI workflow does go red and GitHub does emit the `workflow_run`
-        # event, but the fleet notifier drops it: gh_events only pushes a `workflow_run`
-        # failure when `head_branch == "main"`, and a Dependabot PR lives on
-        # `dependabot/*`. So today NOTHING actively tells anyone. Evidence and fix:
-        # openab-infra#359 (3 real failures on dependabot branches in this fleet, 0
-        # pushed) and openab-infra PR 361, still open as of 2026-08-04.
+        # version of this comment said exactly that, and for months it was wrong in the
+        # way that matters: gh_events pushed a `workflow_run` failure only when
+        # `head_branch == "main"`, and a Dependabot PR lives on `dependabot/*`, so
+        # nothing actively told anyone.
         #
-        # Worth knowing: the poll loop this replaced was NOT the safety net either -- its
-        # red run was also on a `dependabot/*` branch and was dropped by the same filter.
-        # Poll and `--auto` are equivalent for notification; the poll just also burned
-        # 30 runner-minutes per PR. Removing it did not cost a signal that existed.
+        # Fixed 2026-08-04: openab-infra PR 361 widened that filter to `main` OR
+        # `dependabot/*` (merged 10:42Z, Lambda deployed 10:43Z; verified still in place
+        # on `main` 2026-08-11). A red required check on a Dependabot PR should now reach
+        # Discord within a minute -- code and deploy verified, NOT observed live yet: no
+        # `dependabot/*` run has failed anywhere in the fleet since 2026-07-30, so the
+        # widened filter has had no real event to prove itself on. If the next red bump
+        # still goes unannounced, start here.
+        # Scale of what used to be dropped -- the correction
+        # comment on openab-infra#359, 2026-08-04T05:36Z:
+        # https://github.com/jonatw/openab-infra/issues/359#issuecomment-5175049193
+        # 17 failures on `dependabot/*` across the three automerge repos (15 real CI
+        # reds, 2 merge races), none pushed. That supersedes the "3" in the issue body,
+        # and it is a sample bounded by GitHub's run retention, not a full census.
         #
-        # The real fix is a scheduled watchdog that sweeps open Dependabot PRs and goes
-        # red on its own -- tracked in #74 (and #75 for how close-stale-prs erases that signal at day 28).
+        # Two gaps remain, both accepted, and neither is "nobody ever finds out":
+        #   - THIS workflow's own red is excluded from the fast path (most are merge
+        #     races against a PR that got merged in the same minute). It still surfaces
+        #     through `fleet_backfill`, the hourly `/actions/runs` sweep, at digest
+        #     latency rather than push latency.
+        #   - A bump that never goes red -- just sits there unmerged -- emits no failure
+        #     event at all, so there is nothing to push. That is what a scheduled
+        #     watchdog sweeping open Dependabot PRs would catch, tracked in
+        #     openab-infra#365 (open and unassigned as of 2026-08-11). It replaced the
+        #     per-repo version once tracked in #74 here, which is closed not_planned --
+        #     do not send anyone to that issue. #75 is the adjacent hole: close-stale-prs
+        #     GCs a stuck PR at day 28, erasing the very thing a watchdog would watch.
+        #
+        # Worth knowing: the poll loop this replaced was NOT a safety net either -- its
+        # red run also lived on `dependabot/*` and was dropped by the same filter for as
+        # long as that filter stood. Poll and `--auto` are equivalent for notification;
+        # the poll just also burned 30 runner-minutes per PR. Removing it did not cost a
+        # signal that existed.
         #
         # (close-stale-prs.yml eventually GCs a stuck PR -- stale-days 21 +
         # response-days 7 = 28 days -- but that is garbage collection, not a failure
