@@ -18,13 +18,13 @@
     "verify-preview": "node scripts/verify-preview.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "pyodide": "314.0.2",
-    "sass": "^1.108.1",
-    "vite": "^8.3.7"
+    "sass": "^1.108.2",
+    "vite": "^8.3.8"
   },
   "dependencies": {
-    "bootstrap": "^5.3.8",
+    "bootstrap": "^5.3.9",
     "bootstrap-icons": "^1.13.2",
     "jszip": "^3.10.2"
   }
