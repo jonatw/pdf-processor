@@ -61,7 +61,19 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: './dist'
+          # Unique per run attempt. Re-running a failed deploy used to collide
+          # with the previous attempt's leftover "github-pages" artifact
+          # ("Multiple artifacts named \"github-pages\" were unexpectedly
+          # found", see #98/#99). actions/upload-pages-artifact declares no
+          # `overwrite` input (verified against its official action.yml — the
+          # wrapped actions/upload-artifact is pinned internally), so a
+          # per-attempt name is the only way to make re-runs safe without a
+          # cleanup step / extra API calls on the deploy path.
+          name: 'github-pages-${{ github.run_id }}-${{ github.run_attempt }}'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          # Must match the upload step's per-attempt artifact name above.
+          artifact_name: 'github-pages-${{ github.run_id }}-${{ github.run_attempt }}'
